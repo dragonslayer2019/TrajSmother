@@ -221,16 +221,10 @@ int solveMpc() {
     vector<vector<Hyperplane>> CorridorP;//分段切平面约束
     vector<vector<Ellipsoid>> CorridorE;//分段
 
-    //0.获取凸走廊结果，一个二维vector，分段的表示全部切平面约束
     
     
-    //1.基于曲率采样HorizonNum段弧长，得到HorizonNum+1个采样路点
-
-
-    //2.根据弧长vector与对应的V求解非均衡dt
     
-
-    //3.将采样路点与分段凸走廊匹配，horizon num + 1个点对应horizon num + 1个凸走廊，在第i段有m个凸走廊约束,让Hxi正确匹配到对应的凸走廊约束
+    
 
 
 
@@ -247,45 +241,11 @@ int solveMpc() {
 
         // 5.将采样路点的速度作为Vx、Vy、Vz
 
-        // 
-        // Vcon.push_back(25);
-        // Vlaw.push_back(30);
-        // B1.push_back(-inf);
-        // Theta.push_back(pi / 3);
-        // center.push_back({2., 1.});
-        // Ella.push_back(1);
-        // Ellb.push_back(0.5);
         lamb1.push_back(1);
         lamb2.push_back(1);
-        // lamb3.push_back(3);
-        // lamb4.push_back(2);
-        // lamb5.push_back(3);
-        // lamb6.push_back(100);
-        // lamb7.push_back(0.6);
-        // lamb8.push_back(3000);
         lamb3.push_back(1);
         lamb4.push_back(1);
         lamb5.push_back(1);
-        // lamb6.push_back(1);
-        // lamb7.push_back(0.6);
-        // lamb8.push_back(3000);
-        // if (i < 20 && i >= 11 ){
-        //     Xsafe1.push_back(1.7);
-        //     Xsafe2.push_back(2.2);
-        // } else if (i < 40 && i >= 31) {
-        //     Xsafe1.push_back(-1.2);
-        //     Xsafe2.push_back(-0.5);
-        // } else {
-        //     Xsafe1.push_back(-inf);
-        //     Xsafe2.push_back(inf);
-        // }
-        // if (i < 14 && i >= 9) {
-        //     lamb9.push_back(10);
-        //     lamb10.push_back(1000);
-        // } else {
-        //     lamb9.push_back(0);
-        //     lamb10.push_back(0);
-        // }
     }
     solveunit3D(center, dt, Px, Vx, Amin, Amax, Xsafe1, Xsafe2, Vcon, Vlaw, B1, Theta, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, CorridorE, K);
     gettimeofday(&T2,NULL);
@@ -333,6 +293,29 @@ int main(int argc, char ** argv){
   auto end_time = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
   std::cout << "Time taken by code1: " << duration.count() << " microseconds " << std::endl;
+  
+  //1.基于曲率采样HorizonNum段弧长，得到HorizonNum+1个采样路点
+
+
+  //2.根据弧长vector与对应的V求解非均衡dt
+
+
+  //3.获取凸走廊结果，一个二维vector，分段的表示全部切平面约束
+  vec_E<Polyhedron<3>> polyhedrons = decomp_util.get_polyhedrons();
+  for (const auto& polyhedron : polyhedrons) {
+    vec_E<Hyperplane<3>> hyperplanes = polyhedron.hyperplanes();
+  }
+    
+
+  //4.将采样路点与分段凸走廊匹配，horizon num + 1个点对应horizon num + 1个凸走廊，在第i段有m个凸走廊约束,让Hxi正确匹配到对应的凸走廊约束
+  vec_E<Polyhedron<3>> mpc_polyhedrons;
+  Polyhedron<3> correspond_polyhedron;
+  for (/*HorizonNum+1个采样路点*/) {
+    //判断路点处于那段，并范回对应的段数id
+     //对各段segment上的两个端点与采样点的向量计算点积，结果为0则返回i
+
+    mpc_polyhedrons.push_back(/*根据id取出polyhedrons对应的polyhedron*/);
+  }
 
   std::cout << "start solve MPC" << std::endl;
   solveMpc();
