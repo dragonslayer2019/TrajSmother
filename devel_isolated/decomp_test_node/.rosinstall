@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/alan/catkin_ws/devel_isolated/decomp_test_node/setup.sh

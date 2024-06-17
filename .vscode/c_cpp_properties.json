@@ -1,0 +1,47 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/alan/catkin_ws/devel_isolated/decomp_util/include/**",
+        "/home/alan/catkin_ws/devel_isolated/decomp_ros_msgs/include/**",
+        "/home/alan/smart_ws/devel/include/**",
+        "/home/alan/Plant_UAV/devel/include/**",
+        "/opt/ros/melodic/include/**",
+        "/home/alan/smart_ws/src/navigation/amcl/include/**",
+        "/home/alan/smart_ws/src/navigation/base_local_planner/include/**",
+        "/home/alan/smart_ws/src/navigation/carrot_planner/include/**",
+        "/home/alan/smart_ws/src/navigation/clear_costmap_recovery/include/**",
+        "/home/alan/smart_ws/src/navigation/costmap_2d/include/**",
+        "/home/alan/catkin_ws/src/DecompROS/decomp_ros_utils/include/**",
+        "/home/alan/smart_ws/src/navigation/dwa_local_planner/include/**",
+        "/home/alan/vis_decomp/src/ellipse_marker/include/**",
+        "/home/alan/smart_ws/src/global_mapping/include/**",
+        "/home/alan/smart_ws/src/navigation/global_planner/include/**",
+        "/home/alan/smart_ws/src/navigation/map_server/include/**",
+        "/home/alan/Plant_UAV/src/mav_comm/mav_msgs/include/**",
+        "/home/alan/Plant_UAV/src/mav_comm/mav_planning_msgs/include/**",
+        "/home/alan/smart_ws/src/navigation/move_base/include/**",
+        "/home/alan/smart_ws/src/navigation/move_slow_and_clear/include/**",
+        "/home/alan/smart_ws/src/navigation/nav_core/include/**",
+        "/home/alan/smart_ws/src/navigation/navfn/include/**",
+        "/home/alan/smart_ws/src/navigation/rotate_recovery/include/**",
+        "/home/alan/Plant_UAV/src/rotors_simulator/rotors_control/include/**",
+        "/home/alan/Plant_UAV/src/rotors_simulator/rotors_gazebo_plugins/include/**",
+        "/home/alan/Plant_UAV/src/rotors_simulator/rotors_hil_interface/include/**",
+        "/home/alan/Plant_UAV/src/rotors_simulator/rotors_joy_interface/include/**",
+        "/home/alan/smart_ws/src/navigation/voxel_grid/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

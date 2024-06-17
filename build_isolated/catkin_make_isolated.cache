@@ -1,0 +1,2 @@
+DecompROS/DecompUtil:DecompROS/decomp_ros_msgs:DecompROS/decomp_ros_utils:DecompROS/decomp_test_node:catkin_simple
+-DCMAKE_BUILD_TYPE=Release -G Unix Makefiles -DCATKIN_DEVEL_PREFIX=/home/alan/catkin_ws/devel_isolated -DCMAKE_INSTALL_PREFIX=/home/alan/catkin_ws/install_isolated
