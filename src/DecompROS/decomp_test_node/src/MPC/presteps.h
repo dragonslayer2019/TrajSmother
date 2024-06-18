@@ -17,7 +17,7 @@ const int HorizonNum = 49;
 
 
 //double shift test
-const int SizeX = 3, SizeU = 1;
+const int SizeX = 3, SizeU = 1, SizeYx = 6, SizeYu = 2;
 
 
 typedef Eigen::Matrix<double, SizeX, SizeX> MatrixX;
@@ -25,8 +25,8 @@ typedef Eigen::Matrix<double, SizeU, SizeU> MatrixU;
 typedef Eigen::Matrix<double, SizeX, SizeU> MatrixB;
 typedef Eigen::Matrix<double, SizeX, 1> VectorX;
 typedef Eigen::Matrix<double, SizeU, 1> VectorU;
-typedef Eigen::Matrix<T, SizeYx, SizeX> MatrixHx;
-VectorX x_init;
+typedef Eigen::Matrix<double, SizeYx, SizeX> MatrixHx;
+
 MatrixX Ai, Qi, Hxi;
 MatrixB Bi;
 MatrixU Ri, Hui;
@@ -61,7 +61,7 @@ bool isPointOnSegment(const Eigen::Vector3d& A, const Eigen::Vector3d& B, const 
     }
 }
 
-void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector<double> Pz, vector<double> lamb1, vector<double> lamb2, vector<double> lamb3, vector<double> lamb4, vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, vector<Ellipsoid<3>> CorridorE, int K = 250) {
+void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector<double> Pz, vector<double> v_norm, vector<double> lamb1, vector<double> lamb2, vector<double> lamb3, vector<double> lamb4, vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, vector<Ellipsoid<3>> CorridorE, int K = 250) {
     std::array<MatrixX, HorizonNum + 1> Q;
     std::array<MatrixU, HorizonNum + 1> R;
     std::array<VectorX, HorizonNum + 1> L;
@@ -73,39 +73,35 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     std::array<MatrixU, HorizonNum + 1> Hu;
 
     std::array<MatrixU, HorizonNum> Rk;
-    std::array<double, HorizonNum+1> Vnorm;
+    std::array<std::array<FunctionG<double>, SizeYx + SizeYu>, HorizonNum + 1> g;
     std::vector<vector<double>> DistC;
     std::vector<double> aaa, bbb, ccc;
     std::vector<double> ppp;
     // 状态变量(px, py, pz, vx, vy, vz)^T
     // 控制输入(mu1, mu2, mu3)^T
-    // std::array<Eigen::Matrix<double, SizeYx - SizeX, 1>, HorizonNum + 1> new_center;
-    VectorX x_init; // 这里是一维的pvaj，要改成3维的
-    std::array<std::array<FunctionG<double>, SizeYx + SizeYu>, HorizonNum + 1> g;
-    x_init << 0, 0, 0, 0;
+    vec_Vec3f x_init;
+    x_init.resize(2);
+    x_init[0] << 5, 9.5, 0.5;
+    x_init[1] << 1, 1, 1;
+
+
     
     for(int i = 0; i <= HorizonNum; ++i) {
         // 此处为m个切平面约束+一个椭球约束
-        // 计算优化路点到切平面之间距离的结果中的常数转移到gxi函数中
-        Hxi << 1, 0, 0, 0, 0, 0,
-               0, 1, 0, 0, 0, 0,
-               0, 0, 1, 0, 0, 0,
-               0, 0, 0, 1, 0, 0;
-               
-            
+        // 计算优化路点到切平面之间距离的结果中的常数转移到gxi函数中               
+        int M = CorridorP[i].size();
         for (int j = 0; j < M; ++j) {
             // m行到切平面距离   
-            Hxi << CorridorP[i][j].n().x, CorridorP[i][j].n().y, CorridorP[i][j].n().z, 0, 0, 0;
+            Hxi << CorridorP[i][j].n_.x(), CorridorP[i][j].n_.y(), CorridorP[i][j].n_.z(), 0, 0, 0;
             // 计算点到切平面距离中的const向量
-            DistC[i][j] = -CorridorP[i][j].n().x*CorridorP[i][j].p().x - CorridorP[i][j].n().y*CorridorP[i][j].p().y - CorridorP[i][j].n().y*CorridorP[i][j].p().y;
+            DistC[i][j] = -CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() - CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() - CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
         }
-        // 1行椭球到圆心约束！！！！！！！！！！！！！！！
-
+        // Todo: 1行椭球到圆心约束
         Hxi << 1, 0, 0, 0, 0, 0;
         //    cos(Theta[i]) / Ella[i], sin(Theta[i]) / Ella[i], 0, 0,
         //    -sin(Theta[i]) / Ellb[i], cos(Theta[i]) / Ellb[i], 0, 0;
 
-        // 此处为一个曲率平方约束+一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
+        // Todo: 此处为一个曲率平方约束+一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
         Hui << 0, 1, 1,
                0, 1, 1;
         Hx[i] = Hxi;
@@ -115,7 +111,6 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     }
     // 根据采样参考点计算n-1个Rk，Rk第一列单位向量与vk平行，且为正交矩阵
 
-    // 根据Vx， Vy， Vz计算Vnorm[i]
 
     for(int i = 0; i < HorizonNum; ++i) {
         // 6*6
@@ -126,12 +121,12 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
               0, 0, 0 , 0, 1, 0,
               0, 0, 0 , 0, 0, 1;
         // 6*3
-        Bi << 0.5*Vnorm[i]*Vnorm[i]*dt[i]*dt[i]*Rk[i](0,0), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](0,1), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](0,2),
-              0.5*Vnorm[i]*Vnorm[i]*dt[i]*dt[i]*Rk[i](1,0), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*dt[i]*Rk[i](1,1), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*dt[i]*Rk[i](1,2),
-              0.5*Vnorm[i]*Vnorm[i]*dt[i]*dt[i]*Rk[i](2,0), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*dt[i]*Rk[i](2,1), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*dt[i]*Rk[i](2,2),
-              Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](0,0), Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](0,1), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](0,2),
-              Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](1,0), Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](1,1), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](1,2),
-              Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](2,0), Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](2,1), 0.5*Vnorm[i]*Vnorm[i]*dt[i]*Rk[i](2,2);
+        Bi << 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](0,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,2),
+              0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,2),
+              0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,2),
+              v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,2),
+              v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,2),
+              v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,2);
         // 6*1
         ci << 0, 0, 0, 0, 0, 0;
         A[i] = Ai; B[i] = Bi; c[i] = ci;
@@ -234,7 +229,7 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellipsoids, vector<double> dt, vec_Vec3f ref_points) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellipsoids, vector<double> dt, vec_Vec3f ref_points, vector<double> v_norm) {
     double q=0.35, st=0, wei=10, weig=50; int K=250;
     cin >> K;
     struct timeval T1,T2;
@@ -274,10 +269,10 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellip
         lamb4.push_back(1);
         lamb5.push_back(1);
     }
-    solveunit3D(dt, Px, Py, Pz,lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, CorridorE, K);
+    solveunit3D(dt, Px, Py, Pz, v_norm, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, CorridorE, K);
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (double)(T2.tv_usec - T1.tv_usec)/1000000.0;
-    cout<<"time = "<<timeuse<<endl;  //输出时间（单位：ｓ）
+    std::cout<<"time = "<<timeuse<<endl;  //输出时间（单位：ｓ）
     return 0;
 }
 
@@ -401,9 +396,9 @@ vec_Vec3f get_sample_point(vec_Vec3f& path) {
     vec_Vec3f resampled_points = resamplePath(interpolated_points, smoothed_curvature, max_length, max_angle);
 
     // 输出重新采样后的路径点
-    cout << "Resampled Path Points:" << endl;
+    std::cout << "Resampled Path Points:" << std::endl;
     for (const auto& point : resampled_points) {
-        cout << "(" << point.x() << ", " << point.y() << ", " << point.z() << ")" << endl;
+        std::cout << "(" << point.x() << ", " << point.y() << ", " << point.z() << ")" << std::endl;
     }
 
     return resampled_points;

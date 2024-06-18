@@ -90,7 +90,7 @@ int main(int argc, char ** argv){
   }
 
   std::cout << "start solve MPC" << std::endl;
-  solveMpc(mpc_polyhedrons, mpc_ellipsoids, dt, ref_points);
+  solveMpc(mpc_polyhedrons, mpc_ellipsoids, dt, ref_points, v_norm);
   std::cout << "end solveMpc" << std::endl;
 
   //Publish visualization msgs

@@ -59,7 +59,7 @@ public:
         std::array<MatrixX, HorizonNum> _A,
         std::array<MatrixB, HorizonNum> _B,
         std::array<VectorX, HorizonNum> _c,
-        VectorX _x_init,
+        vec_Vec3f _x_init,
         std::array<MatrixHx, HorizonNum + 1> _Hx,
         std::array<MatrixHu, HorizonNum + 1> _Hu,
         std::array<std::array<FunctionG<T>, SizeX + SizeU>, HorizonNum + 1> _g,
