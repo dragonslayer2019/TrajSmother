@@ -48,10 +48,10 @@ int main(int argc, char ** argv){
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
   std::cout << "Time taken by get corridor: " << duration.count() << " microseconds " << std::endl;
   
-  // 计算路径曲率并平滑,基于曲率采样任意段弧长，经过裁剪路点数量得到不多于HorizonNum+1个采样路点
+  // 计算路径曲率并平滑,基于曲率采样任意段弧长，经过标准化得到1 + HorizonNum个采样路点
   vec_Vec3f ref_points = get_sample_point(path);
 
-  // 基于弧长长度与最大单位弧长长度插值求解v，根据弧长vector与对应的V求解非均衡dt，根据v的方向计算rk
+  // 基于弧长长度与最大单位弧长长度插值求解v，根据弧长vector与对应的V求解非均匀dt，根据v的方向计算rk
   vector<double> v_norm, dt;
   vector<Mat3f> Rk;
   get_param(ref_points, v_norm, Rk, dt);
@@ -60,20 +60,31 @@ int main(int argc, char ** argv){
   vec_E<Polyhedron<3>> polyhedrons = decomp_util.get_polyhedrons();
   vec_E<Ellipsoid<3>> ellipsoids = decomp_util.get_ellipsoids();
   vec_E<Polyhedron<3>> mpc_polyhedrons;
-  vec_E<Ellipsoid<3>> mpc_ellipsoids;
+  
+  vector<Mat3f> E_inverse(ellipsoids.size());
+  vector<Eigen::Matrix<double, 3, 1>> E_inverse_d(ellipsoids.size());
+  
+  // 椭球线性变换为单位球
+  for (int i = 0; i < ellipsoids.size(); i++) {
+    E_inverse[i] = ellipsoids[i].C().inverse();
+    E_inverse_d[i] = E_inverse[i]*ellipsoids[i].d();
+  }
+  std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_center;
+  std::array<Mat3f, HorizonNum + 1> elliE;
   for (int i = 0; i <= HorizonNum; ++i) {
     //判断路点处于哪段，并范回对应的段数id
     for (int j = 0; j < path.size()-1;j++){
       if(isPointOnSegment(path[j], path[j+1], ref_points[i])) {
         mpc_polyhedrons.push_back(polyhedrons[j]);
-        mpc_ellipsoids.push_back(ellipsoids[j]);
+        elliE[i] = E_inverse[j];
+        new_center[i] = E_inverse_d[j];
         break;
       }
     }
   }
 
   std::cout << "start solve MPC" << std::endl;
-  solveMpc(mpc_polyhedrons, mpc_ellipsoids, dt, ref_points, v_norm, Rk);
+  solveMpc(mpc_polyhedrons, new_center, elliE, dt, ref_points, v_norm, Rk);
   std::cout << "end solveMpc" << std::endl;
 
   //Publish visualization msgs

@@ -13,8 +13,8 @@
 #include <nav_msgs/Path.h>
 using namespace std;
 
-// MPC步数、状态变量个数、控制变量个数、5个切平面+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
-const int HorizonNum = 49, SizeX = 6, SizeU = 3, SizeYx = 6, SizeYu = 2;
+// MPC步数、状态变量个数、控制变量个数、5个切平面+6个bbox约束+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
+const int HorizonNum = 49, SizeX = 6, SizeU = 3, SizeYx = 14, SizeYu = 2;
 const double inf = 1e5;
 
 
@@ -50,7 +50,10 @@ bool isPointOnSegment(const Eigen::Vector3d& A, const Eigen::Vector3d& B, const 
     }
 }
 
-void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector<double> Pz, vector<double> v_norm, vector<Mat3f> Rk, vector<double> lamb1, vector<double> lamb2, vector<double> lamb3, vector<double> lamb4, vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, vector<Ellipsoid<3>> CorridorE, int K = 250) {
+void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector<double> Pz, vector<double> v_norm,
+                 vector<Mat3f> Rk, vector<double> lamb1, vector<double> lamb2, vector<double> lamb3, vector<double> lamb4,
+                 vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_center,
+                 std::array<Mat3f, HorizonNum + 1> elliE, int K = 250) {
     std::array<MatrixX, HorizonNum + 1> Q;
     std::array<MatrixU, HorizonNum + 1> R;
     std::array<VectorX, HorizonNum + 1> L;
@@ -93,23 +96,21 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
             // 计算点到切平面距离中的const向量
             DistC[i][j] = -CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() - CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() - CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
         }
-        // Todo: 1行椭球到圆心约束
-        Hxi(M, 0) = 1;
-        Hxi(M, 1) = 0;
-        Hxi(M, 2) = 0;
-        Hxi(M, 3) = 0;
-        Hxi(M, 4) = 0;
-        Hxi(M, 5) = 0;
-        //    cos(Theta[i]) / Ella[i], sin(Theta[i]) / Ella[i], 0, 0,
-        //    -sin(Theta[i]) / Ellb[i], cos(Theta[i]) / Ellb[i], 0, 0;
+        // 1个到椭球圆心距离约束
+        for (int k = 0; k < 3; k++) {
+            Hxi(M+k, 0) = elliE[i](k, 0);
+            Hxi(M+k, 1) = elliE[i](k, 1);
+            Hxi(M+k, 2) = elliE[i](k, 2);
+            Hxi(M+k, 3) = 0;
+            Hxi(M+k, 4) = 0;
+            Hxi(M+k, 5) = 0;
+        }
 
-        // Todo: 此处为一个曲率平方约束+一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
+        // 此处为一个曲率平方约束+一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
         Hui << 0, 1, 1,
                0, 1, 1;
         Hx[i] = Hxi;
         Hu[i] = Hui;
-        // new_center[i] << cos(Theta[i]) / Ella[i] * center[i][0] + sin(Theta[i]) / Ella[i] * center[i][1],
-        //                  -sin(Theta[i]) / Ellb[i] * center[i][0] + cos(Theta[i]) / Ellb[i] * center[i][1];
     }
 
     for(int i = 0; i < HorizonNum; ++i) {
@@ -236,7 +237,7 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellipsoids, vector<double> dt, vec_Vec3f ref_points, vector<double> v_norm, vector<Mat3f> Rk) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_center, std::array<Mat3f, HorizonNum + 1> elliE, vector<double> dt, vec_Vec3f ref_points, vector<double> v_norm, vector<Mat3f> Rk) {
     double q=0.35, st=0, wei=10, weig=50; int K=250;
     cin >> K;
     struct timeval T1,T2;
@@ -247,9 +248,7 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellip
     vector<double> Px, Py, Pz, Theta, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5;
     vector<vector<double>> center;
     vector<vector<Hyperplane<3>>> CorridorP;//分段切平面约束
-    vector<Ellipsoid<3>> CorridorE;//分段椭球
     CorridorP.resize(HorizonNum+1);
-    CorridorE.resize(HorizonNum+1);
     Px.resize(HorizonNum+1);
     Py.resize(HorizonNum+1);
     Pz.resize(HorizonNum+1);
@@ -262,7 +261,6 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellip
         for (int j = 0; j < plane_size; j++) {
             CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
         }
-        CorridorE[i] = mpc_ellipsoids[i];
 
         // 用ref_points为Px、Py、Pz赋值
         Px[i] = ref_points[i].x();
@@ -276,7 +274,10 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellip
         lamb4.push_back(1);
         lamb5.push_back(1);
     }
-    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, CorridorE, K);
+
+
+
+    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_center, elliE, K);
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (double)(T2.tv_usec - T1.tv_usec)/1000000.0;
     std::cout<<"time = "<<timeuse<<endl;  //输出时间（单位：ｓ）

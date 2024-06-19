@@ -121,6 +121,7 @@ class DecompBase {
       std::cout << "limit_ellipsoid_E: " << limit_ellipsoid_E << std::endl;
 
       polyhedron_ = Vs;
+      std::cout << "Vs.size(): " << Vs.vs_.size() << std::endl;
     }
 
     /// Obstacles, input
