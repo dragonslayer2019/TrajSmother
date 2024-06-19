@@ -12,12 +12,10 @@
 #include <decomp_util/ellipsoid_decomp.h>
 #include <nav_msgs/Path.h>
 using namespace std;
-const int HorizonNum = 49;
 
-
-
-//double shift test
-const int SizeX = 3, SizeU = 1, SizeYx = 6, SizeYu = 2;
+// MPC步数、状态变量个数、控制变量个数、5个切平面+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
+const int HorizonNum = 49, SizeX = 6, SizeU = 3, SizeYx = 6, SizeYu = 2;
+const double inf = 1e5;
 
 
 typedef Eigen::Matrix<double, SizeX, SizeX> MatrixX;
@@ -26,15 +24,6 @@ typedef Eigen::Matrix<double, SizeX, SizeU> MatrixB;
 typedef Eigen::Matrix<double, SizeX, 1> VectorX;
 typedef Eigen::Matrix<double, SizeU, 1> VectorU;
 typedef Eigen::Matrix<double, SizeYx, SizeX> MatrixHx;
-
-MatrixX Ai, Qi, Hxi;
-MatrixB Bi;
-MatrixU Ri, Hui;
-VectorX ci, Li;
-VectorU Wi;
-const double inf = 1e5;
-
-
 
 
 bool isPointOnSegment(const Eigen::Vector3d& A, const Eigen::Vector3d& B, const Eigen::Vector3d& P) {
@@ -61,7 +50,7 @@ bool isPointOnSegment(const Eigen::Vector3d& A, const Eigen::Vector3d& B, const 
     }
 }
 
-void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector<double> Pz, vector<double> v_norm, vector<double> lamb1, vector<double> lamb2, vector<double> lamb3, vector<double> lamb4, vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, vector<Ellipsoid<3>> CorridorE, int K = 250) {
+void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector<double> Pz, vector<double> v_norm, vector<Mat3f> Rk, vector<double> lamb1, vector<double> lamb2, vector<double> lamb3, vector<double> lamb4, vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, vector<Ellipsoid<3>> CorridorE, int K = 250) {
     std::array<MatrixX, HorizonNum + 1> Q;
     std::array<MatrixU, HorizonNum + 1> R;
     std::array<VectorX, HorizonNum + 1> L;
@@ -72,17 +61,20 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     std::array<MatrixHx, HorizonNum + 1> Hx;
     std::array<MatrixU, HorizonNum + 1> Hu;
 
-    std::array<MatrixU, HorizonNum> Rk;
+    MatrixX Ai, Qi, Hxi;
+    MatrixB Bi;
+    MatrixU Ri, Hui;
+    VectorX ci, Li;
+    VectorU Wi;
+
     std::array<std::array<FunctionG<double>, SizeYx + SizeYu>, HorizonNum + 1> g;
     std::vector<vector<double>> DistC;
     std::vector<double> aaa, bbb, ccc;
     std::vector<double> ppp;
     // 状态变量(px, py, pz, vx, vy, vz)^T
     // 控制输入(mu1, mu2, mu3)^T
-    vec_Vec3f x_init;
-    x_init.resize(2);
-    x_init[0] << 5, 9.5, 0.5;
-    x_init[1] << 1, 1, 1;
+    VectorX x_init;
+    x_init << 5, 9.5, 0.5, 3, 3, 3;
 
 
     
@@ -92,12 +84,22 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
         int M = CorridorP[i].size();
         for (int j = 0; j < M; ++j) {
             // m行到切平面距离   
-            Hxi << CorridorP[i][j].n_.x(), CorridorP[i][j].n_.y(), CorridorP[i][j].n_.z(), 0, 0, 0;
+            Hxi(j,0) = CorridorP[i][j].n_.x();
+            Hxi(j,1) = CorridorP[i][j].n_.y();
+            Hxi(j,2) =  CorridorP[i][j].n_.z();
+            Hxi(j,3) = 0;
+            Hxi(j,4) = 0;
+            Hxi(j,5) = 0;
             // 计算点到切平面距离中的const向量
             DistC[i][j] = -CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() - CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() - CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
         }
         // Todo: 1行椭球到圆心约束
-        Hxi << 1, 0, 0, 0, 0, 0;
+        Hxi(M, 0) = 1;
+        Hxi(M, 1) = 0;
+        Hxi(M, 2) = 0;
+        Hxi(M, 3) = 0;
+        Hxi(M, 4) = 0;
+        Hxi(M, 5) = 0;
         //    cos(Theta[i]) / Ella[i], sin(Theta[i]) / Ella[i], 0, 0,
         //    -sin(Theta[i]) / Ellb[i], cos(Theta[i]) / Ellb[i], 0, 0;
 
@@ -109,8 +111,6 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
         // new_center[i] << cos(Theta[i]) / Ella[i] * center[i][0] + sin(Theta[i]) / Ella[i] * center[i][1],
         //                  -sin(Theta[i]) / Ellb[i] * center[i][0] + cos(Theta[i]) / Ellb[i] * center[i][1];
     }
-    // 根据采样参考点计算n-1个Rk，Rk第一列单位向量与vk平行，且为正交矩阵
-
 
     for(int i = 0; i < HorizonNum; ++i) {
         // 6*6
@@ -129,6 +129,7 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
               v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,2);
         // 6*1
         ci << 0, 0, 0, 0, 0, 0;
+
         A[i] = Ai; B[i] = Bi; c[i] = ci;
     }
 
@@ -151,7 +152,7 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
               0, 0, 0,
               0, 0, lamb2[i];
         Wi << 0,
-              0, 
+              0,
               0;
         Q[i] = Qi; R[i] = Ri; L[i] = Li; W[i] = Wi;
     }
@@ -167,16 +168,16 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
         // 凸走廊切平面罚函数
         int M = CorridorP[i].size();
         for (int j = 0; j < M; j++) {
-            ppp[0] = -inf;ppp[1] = 0.1;ppp[2] = 1;ppp[3] = inf;
+            ppp[0] = -inf;ppp[1] = 0.2;ppp[2] = 1;ppp[3] = inf;
             aaa[0] = 10;bbb[0] = -22 + 20*DistC[i][j];ccc[0] = 10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5;
             aaa[1] = 1;bbb[1] = 2*DistC[i][j] - 2.45;ccc[1] = DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45;
             aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
             g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
-        } 
+        }
         
         // 凸走廊椭球罚函数
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 1.0;ppp[3] = inf;
-        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0; 
+        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = 1; bbb[1] = 0; ccc[1] = -0.25; 
         aaa[2] = 10; bbb[2] = 0; ccc[2] = -9.25;
         g[i][M].AddQuadratic(3, aaa, bbb, ccc, ppp);
@@ -184,13 +185,13 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
         // 曲率平方约束
         ppp[0] = -inf;ppp[1] = 0;ppp[2] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = 1; bbb[1] = 0; ccc[1] = 0;  
+        aaa[1] = 1; bbb[1] = 0; ccc[1] = 0;
         g[i][M+1].AddQuadratic(2, aaa, bbb, ccc, ppp);
 
         // 曲率罚函数
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
-        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0; 
-        aaa[1] = 1; bbb[1] = 0; ccc[1] = -0.25; 
+        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
+        aaa[1] = 1; bbb[1] = 0; ccc[1] = -0.25;
         aaa[2] = 10; bbb[2] = 0; ccc[2] = -36.25;
         g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
@@ -204,21 +205,27 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     json j;
     json jx = json::array();
     json jy = json::array();
-    json jv = json::array();
-    json ja = json::array();
+    json jz = json::array();
+    json jvx = json::array();
+    json jvy = json::array();
+    json jvz = json::array();
     json ju = json::array();
     // vector<double> t(HorizonNum), x(HorizonNum), v(HorizonNum), a(HorizonNum), u(HorizonNum);
     for(int i = 0; i <= HorizonNum; ++i) {
         jx.push_back(res.v[i](0, 0));
         jy.push_back(res.v[i](1, 0));
-        jv.push_back(res.v[i](2, 0));
-        ja.push_back(res.v[i](3, 0));
-        ju.push_back(res.v[i](4, 0));
+        jz.push_back(res.v[i](2, 0));
+        jvx.push_back(res.v[i](3, 0));
+        jvy.push_back(res.v[i](4, 0));
+        jvz.push_back(res.v[i](5, 0));
+        ju.push_back(res.v[i](6, 0));
     }
     j["x"] = jx;
     j["y"] = jy;
-    j["v"] = jv;
-    j["a"] = ja;
+    j["z"] = jz;
+    j["vx"] = jvx;
+    j["vy"] = jvy;
+    j["vz"] = jvz;
     j["u"] = ju;
     j["Px"] = Px;
     ofstream out("test1.out");
@@ -229,7 +236,7 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellipsoids, vector<double> dt, vec_Vec3f ref_points, vector<double> v_norm) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellipsoids, vector<double> dt, vec_Vec3f ref_points, vector<double> v_norm, vector<Mat3f> Rk) {
     double q=0.35, st=0, wei=10, weig=50; int K=250;
     cin >> K;
     struct timeval T1,T2;
@@ -269,14 +276,39 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, vec_E<Ellipsoid<3>> mpc_ellip
         lamb4.push_back(1);
         lamb5.push_back(1);
     }
-    solveunit3D(dt, Px, Py, Pz, v_norm, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, CorridorE, K);
+    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, CorridorE, K);
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (double)(T2.tv_usec - T1.tv_usec)/1000000.0;
     std::cout<<"time = "<<timeuse<<endl;  //输出时间（单位：ｓ）
     return 0;
 }
 
-
+Eigen::Matrix3d compute_rk(const Eigen::Vector3d& a) {
+    // Step 1: Normalize vector a to get u1
+    Eigen::Vector3d u1 = a.normalized();
+    
+    // Step 2: Choose an arbitrary vector v that is not parallel to u1
+    Eigen::Vector3d v;
+    if (u1 != Eigen::Vector3d(1, 0, 0) && u1 != Eigen::Vector3d(-1, 0, 0)) {
+        v = Eigen::Vector3d(1, 0, 0);
+    } else {
+        v = Eigen::Vector3d(0, 1, 0);
+    }
+    
+    // Step 3: Compute u2 which is orthogonal to u1
+    Eigen::Vector3d u2 = (v.cross(u1)).normalized();
+    
+    // Step 4: Compute u3 which is orthogonal to both u1 and u2
+    Eigen::Vector3d u3 = u1.cross(u2);
+    
+    // Step 5: Construct the orthogonal matrix R
+    Eigen::Matrix3d R;
+    R.col(0) = u1;
+    R.col(1) = u2;
+    R.col(2) = u3;
+    
+    return R;
+}
 
 
 // 计算两个三维点之间的欧氏距离
@@ -400,6 +432,31 @@ vec_Vec3f get_sample_point(vec_Vec3f& path) {
     for (const auto& point : resampled_points) {
         std::cout << "(" << point.x() << ", " << point.y() << ", " << point.z() << ")" << std::endl;
     }
+    
+    // 标准化参考路径点数为1 + HorizonNum
+    vec_Vec3f ref_points;
+    ref_points.resize(HorizonNum + 1);
+    if (resampled_points.size() - 1 < HorizonNum) {
+        std::copy(resampled_points.begin(), resampled_points.end(), ref_points.begin());
+        std::fill(ref_points.begin() + resampled_points.size(), ref_points.end(), resampled_points.back());
+    } else {
+        std::copy(resampled_points.begin(), resampled_points.begin() + HorizonNum + 1, ref_points.begin());
+    }
+    return ref_points;
+}
 
-    return resampled_points;
+void get_param(const vec_Vec3f& ref_points, vector<double>& v_norm, vector<Mat3f>& Rk, vector<double>& dt) {
+  double v_max = 5;
+  double s_max = 0.5;
+  v_norm.resize(HorizonNum);
+  dt.resize(HorizonNum);
+  Rk.resize(HorizonNum);
+  for (int i = 0; i < HorizonNum; ++i) {
+    double dis = distance(ref_points[i], ref_points[i+1]);
+    v_norm[i] = dis/s_max*v_max;
+    dt[i] = (dis/v_norm[i]);
+    Vec3f dir = {ref_points[i + 1].x() - ref_points[i].x(), ref_points[i + 1].y() - ref_points[i].y(), ref_points[i + 1].z() - ref_points[i].z()};
+    // 计算Rk[i]，使得其i第一列列向量与dir平行，其余两列单位列向量与其组成正交矩阵
+    Rk[i] = compute_rk(dir);
+  }
 }
