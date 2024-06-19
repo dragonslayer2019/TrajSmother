@@ -69,7 +69,8 @@ int main(int argc, char ** argv){
     E_inverse[i] = ellipsoids[i].C().inverse();
     E_inverse_d[i] = E_inverse[i]*ellipsoids[i].d();
   }
-  std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_center;
+  std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_centerX;
+  std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_centerU;
   std::array<Mat3f, HorizonNum + 1> elliE;
   for (int i = 0; i <= HorizonNum; ++i) {
     //判断路点处于哪段，并范回对应的段数id
@@ -77,14 +78,14 @@ int main(int argc, char ** argv){
       if(isPointOnSegment(path[j], path[j+1], ref_points[i])) {
         mpc_polyhedrons.push_back(polyhedrons[j]);
         elliE[i] = E_inverse[j];
-        new_center[i] = E_inverse_d[j];
+        new_centerX[i] = E_inverse_d[j];
         break;
       }
     }
   }
 
   std::cout << "start solve MPC" << std::endl;
-  solveMpc(mpc_polyhedrons, new_center, elliE, dt, ref_points, v_norm, Rk);
+  solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk);
   std::cout << "end solveMpc" << std::endl;
 
   //Publish visualization msgs

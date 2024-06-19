@@ -15,8 +15,9 @@ using namespace std;
 
 // MPC步数、状态变量个数、控制变量个数、5个切平面+6个bbox约束+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
 const int HorizonNum = 49, SizeX = 6, SizeU = 3, SizeYx = 14, SizeYu = 2;
+int KAcc = 150;
 const double inf = 1e5;
-
+int SizeEllx[11] = {2, 0,0,0,0,0,0,0,0,0,0}, SizeEllu[2] = {2,2};
 
 typedef Eigen::Matrix<double, SizeX, SizeX> MatrixX;
 typedef Eigen::Matrix<double, SizeU, SizeU> MatrixU;
@@ -52,8 +53,8 @@ bool isPointOnSegment(const Eigen::Vector3d& A, const Eigen::Vector3d& B, const 
 
 void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector<double> Pz, vector<double> v_norm,
                  vector<Mat3f> Rk, vector<double> lamb1, vector<double> lamb2, vector<double> lamb3, vector<double> lamb4,
-                 vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_center,
-                 std::array<Mat3f, HorizonNum + 1> elliE, int K = 250) {
+                 vector<double> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_centerX,
+                 std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_centerU, std::array<Mat3f, HorizonNum + 1> elliE, int K = 250) {
     std::array<MatrixX, HorizonNum + 1> Q;
     std::array<MatrixU, HorizonNum + 1> R;
     std::array<VectorX, HorizonNum + 1> L;
@@ -198,7 +199,7 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     }
 
 
-    MPC_ADMMSolver<double, HorizonNum, SizeX, SizeU, SizeYx, SizeYu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_center, g, 100, K);
+    MPC_ADMMSolver<double, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, 11, 0, 3, 2, 16, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100.0, KAcc, K);
     BlockVector<double, HorizonNum + 1, SizeX + SizeU> res = mpc.solve();
     
 
@@ -221,6 +222,10 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
         jvz.push_back(res.v[i](5, 0));
         ju.push_back(res.v[i](6, 0));
     }
+    std::cout << "px: ";
+    for(int i = 0; i <= HorizonNum; ++i) {
+        std::cout << " " <<res.v[i](0, 0) << std::endl;
+    }
     j["x"] = jx;
     j["y"] = jy;
     j["z"] = jz;
@@ -237,7 +242,7 @@ void solveunit3D(vector<double> dt, vector<double> Px, vector<double> Py, vector
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_center, std::array<Mat3f, HorizonNum + 1> elliE, vector<double> dt, vec_Vec3f ref_points, vector<double> v_norm, vector<Mat3f> Rk) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<double, 3, 1>, HorizonNum + 1> new_centerU, std::array<Mat3f, HorizonNum + 1> elliE, vector<double> dt, vec_Vec3f ref_points, vector<double> v_norm, vector<Mat3f> Rk) {
     double q=0.35, st=0, wei=10, weig=50; int K=250;
     cin >> K;
     struct timeval T1,T2;
@@ -277,7 +282,7 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<doub
 
 
 
-    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_center, elliE, K);
+    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, K);
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (double)(T2.tv_usec - T1.tv_usec)/1000000.0;
     std::cout<<"time = "<<timeuse<<endl;  //输出时间（单位：ｓ）
