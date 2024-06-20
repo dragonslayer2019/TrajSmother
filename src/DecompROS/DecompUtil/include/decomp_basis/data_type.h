@@ -47,7 +47,7 @@
 
     Default is set to be double, but user can change it to float.
 */
-typedef float decimal_t;
+typedef double decimal_t;
 
 ///Pre-allocated std::vector for Eigen using vec_E
 template <typename T>

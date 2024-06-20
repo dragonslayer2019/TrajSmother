@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Eigen/Dense>
 #include <iostream>
 #include <vector>
@@ -69,7 +71,7 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
     Eigen::Vector3f crossProduct = AB.cross(AP);
     
     // 判断叉积是否为零向量
-    if (!crossProduct.isZero(1e-10)) { // 允许一定的误差范围
+    if (!crossProduct.isZero(1e-1)) { // 允许一定的误差范围
         return false;
     }
     
@@ -85,10 +87,11 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
     }
 }
 
+
 void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
-                 vector<Mat3f> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
+                 vector<Eigen::Matrix<float, 3, 3>> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
                  vector<float> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX,
-                 std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Mat3f, HorizonNum + 1> elliE, int K = 250) {
+                 std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, int K = 250) {
 
     std::array<MatrixX, HorizonNum + 1> Q;
     std::array<MatrixU, HorizonNum + 1> R;
@@ -109,7 +112,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     VectorU Wi;
 
     std::array<std::array<FunctionG<float>, SizeG>, HorizonNum + 1> g;
-    std::vector<vector<float>> DistC;
+    std::vector<vector<float>> DistC(HorizonNum+1, std::vector<float>(HorizonNum+1));
     std::vector<float> aaa, bbb, ccc;
     std::vector<float> ppp;
     // 状态变量(px, py, pz, vx, vy, vz)^T
@@ -118,7 +121,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     x_init << 5, 9.5, 0.5, 3, 3, 3;
 
 
-    
+
     for(int i = 0; i <= HorizonNum; ++i) {
         // 此处为m个切平面约束+一个椭球约束
         // 计算优化路点到切平面之间距离的结果中的常数转移到gxi函数中               
@@ -133,7 +136,9 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
             Hxi(j,5) = 0;
             // 计算点到切平面距离中的const向量
             DistC[i][j] = -CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() - CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() - CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
+                         
         }
+                
         // 1个到椭球圆心距离约束
         for (int k = 0; k < 3; k++) {
             Hxi(M+k, 0) = elliE[i](k, 0);
@@ -237,10 +242,12 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
 
-    /*
+    std::cout << "in solveunit3D" << std::endl;
     MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
     // MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
+   
     BlockVector<float, HorizonNum + 1, SizeX + SizeU> res = mpc.solve();
+     std::cout << "finish solveunit3D" << std::endl;
     
 
     using json = nlohmann::json;
@@ -279,11 +286,11 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         out << j.dump(4) << endl;
         out.close();
     }
-    */
+    
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Mat3f, HorizonNum + 1> elliE, vector<float> dt, vec_Vec3f ref_points, vector<float> v_norm, vector<Mat3f> Rk) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
     K = 250;
     struct timeval T1,T2;
@@ -307,7 +314,6 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         for (int j = 0; j < plane_size; j++) {
             CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
         }
-
         // 用ref_points为Px、Py、Pz赋值
         Px[i] = ref_points[i].x();
         Py[i] = ref_points[i].y();
@@ -320,7 +326,7 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         lamb4.push_back(1);
         lamb5.push_back(1);
     }
-
+    std::cout << "start solveunit3D" << std::endl;
     solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, K);
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
@@ -329,26 +335,27 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
 }
 
 
+
 // 计算两个三维点之间的欧氏距离
-float distance(const Vec3f& p1, const Vec3f& p2) {
+float distance(const Eigen::Vector3f& p1, const Eigen::Vector3f& p2) {
     return sqrt(pow(p1(0) - p2(0), 2) + pow(p1(1) - p2(1), 2) + pow(p1(2) - p2(2), 2));
 }
 
 // 插值路径点，步长为max_length
-vec_Vec3f interpolatePoints(const vec_Vec3f& points, float max_length) {
-    vec_Vec3f interpolated_points;
+vector<Eigen::Vector3f> interpolatePoints(const vector<Eigen::Vector3f>& points, float max_length) {
+    vector<Eigen::Vector3f> interpolated_points;
     interpolated_points.push_back(points[0]);
 
     for (size_t i = 1; i < points.size(); ++i) {
-        Vec3f p1 = points[i - 1];
-        Vec3f p2 = points[i];
+        Eigen::Vector3f p1 = points[i - 1];
+        Eigen::Vector3f p2 = points[i];
         float segment_length = distance(p1, p2);
         size_t num_segments = static_cast<size_t>(ceil(segment_length / max_length));
         Eigen::Vector3f direction(p2(0) - p1(0), p2(1) - p1(1), p2(2) - p1(2));
         direction.normalize();
 
         for (size_t j = 1; j < num_segments; ++j) {
-            Vec3f new_point = {
+            Eigen::Vector3f new_point = {
                 p1.x() + direction.x() * max_length * j,
                 p1.y() + direction.y() * max_length * j,
                 p1.z() + direction.z() * max_length * j
@@ -361,7 +368,7 @@ vec_Vec3f interpolatePoints(const vec_Vec3f& points, float max_length) {
 }
 
 // 计算曲率
-vector<float> computeCurvature(const vec_Vec3f& points, float resample_dist) {
+vector<float> computeCurvature(const vector<Eigen::Vector3f>& points, float resample_dist) {
     int n = points.size();
     vector<float> curvature(n, 0.0);
     for (int i = 1; i < n - 1; ++i) {
@@ -391,8 +398,8 @@ vector<float> smoothCurvature(const vector<float>& curvature, int window_size) {
 }
 
 // 重新采样路径点
-vec_Vec3f resamplePath(const vec_Vec3f& points, const vector<float>& smoothed_curvature, float max_length, float max_angle) {
-    vec_Vec3f resampled_points;
+vector<Eigen::Vector3f> resamplePath(const vector<Eigen::Vector3f>& points, const vector<float>& smoothed_curvature, float max_length, float max_angle) {
+    vector<Eigen::Vector3f> resampled_points;
     resampled_points.push_back(points[0]);
     float cum_length = 0.0;
     float cum_angle = 0.0;
@@ -409,7 +416,7 @@ vec_Vec3f resamplePath(const vec_Vec3f& points, const vector<float>& smoothed_cu
         if (cum_length > max_length || cum_angle > (max_angle * M_PI / 180.0)) {
             Eigen::Vector3f direction(points[i](0) - points[i - 1](0), points[i](1) - points[i - 1](1), points[i](2) - points[i - 1](2));
             direction.normalize();
-            Vec3f new_point = {
+            Eigen::Vector3f new_point = {
                 points[i].x() - direction.x() * (cum_length - max_length),
                 points[i].y() - direction.y() * (cum_length - max_length),
                 points[i].z() - direction.z() * (cum_length - max_length)
@@ -423,9 +430,9 @@ vec_Vec3f resamplePath(const vec_Vec3f& points, const vector<float>& smoothed_cu
     return resampled_points;
 }
 
-vec_Vec3f get_sample_point(vec_Vec3f& path) {
+vector<Eigen::Vector3f> get_sample_point(vector<Eigen::Vector3f>& path) {
     // 输入路径点
-    // vec_Vec3f points = {
+    // vector<Eigen::Vector3f> points = {
     //     {5, 9.5, 0.5}, {13, 11.5, 3.0}, {15, 9.5, 1.5}, {14, 5, 2.5}
     // };
 
@@ -433,7 +440,7 @@ vec_Vec3f get_sample_point(vec_Vec3f& path) {
     float max_length = 0.5;
 
     // 插值路径点，确保每段长度不超过max_length
-    vec_Vec3f interpolated_points = interpolatePoints(path, max_length);
+    vector<Eigen::Vector3f> interpolated_points = interpolatePoints(path, max_length);
 
     // 计算曲率
     vector<float> curvature = computeCurvature(interpolated_points, max_length);
@@ -443,16 +450,13 @@ vec_Vec3f get_sample_point(vec_Vec3f& path) {
 
     // 重新采样路径点
     float max_angle = 20.0;
-    vec_Vec3f resampled_points = resamplePath(interpolated_points, smoothed_curvature, max_length, max_angle);
+    vector<Eigen::Vector3f> resampled_points = resamplePath(interpolated_points, smoothed_curvature, max_length, max_angle);
 
     // 输出重新采样后的路径点
-    std::cout << "Resampled Path Points:" << std::endl;
-    for (const auto& point : resampled_points) {
-        std::cout << "(" << point.x() << ", " << point.y() << ", " << point.z() << ")" << std::endl;
-    }
+
     
     // 标准化参考路径点数为1 + HorizonNum
-    vec_Vec3f ref_points;
+    vector<Eigen::Vector3f> ref_points;
     ref_points.resize(HorizonNum + 1);
     if (resampled_points.size() - 1 < HorizonNum) {
         std::copy(resampled_points.begin(), resampled_points.end(), ref_points.begin());
@@ -460,11 +464,16 @@ vec_Vec3f get_sample_point(vec_Vec3f& path) {
     } else {
         std::copy(resampled_points.begin(), resampled_points.begin() + HorizonNum + 1, ref_points.begin());
     }
+    // std::cout << "Resampled Path Points:" << std::endl;
+    // for (const auto& point : ref_points) {
+    //     std::cout << "(" << point.x() << ", " << point.y() << ", " << point.z() << ")" << std::endl;
+    // }
     return ref_points;
 }
 
+
 // 计算变换矩阵的函数
-Eigen::Matrix3f calculateTransformationMatrix(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, const Eigen::Vector3f& p2) {
+Eigen::Matrix<float, 3, 3> calculateTransformationMatrix(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, const Eigen::Vector3f& p2) {
     // 计算向量a
     Eigen::Vector3f a = p2 - p1;
     a.normalize();
@@ -488,7 +497,8 @@ Eigen::Matrix3f calculateTransformationMatrix(const Eigen::Vector3f& p0, const E
     return transformationMatrix;
 }
 
-void get_param(const vec_Vec3f& ref_points, vector<float>& v_norm, vector<Mat3f>& Rk, vector<float>& dt) {
+
+void get_param(const vector<Eigen::Vector3f>& ref_points, vector<float>& v_norm, vector<Eigen::Matrix<float, 3, 3>>& Rk, vector<float>& dt) {
   float v_max = 5;
   float s_max = 0.5;
   v_norm.resize(HorizonNum);
@@ -497,11 +507,14 @@ void get_param(const vec_Vec3f& ref_points, vector<float>& v_norm, vector<Mat3f>
   Eigen::Vector3f p0;
   Eigen::Vector3f p1;
   Eigen::Vector3f p2;
+
   for (int i = 0; i < HorizonNum; ++i) {
+    
     float dis = distance(ref_points[i], ref_points[i+1]);
     v_norm[i] = dis/s_max*v_max;
     dt[i] = (dis/v_norm[i]);
-    Vec3f dir = {ref_points[i + 1].x() - ref_points[i].x(), ref_points[i + 1].y() - ref_points[i].y(), ref_points[i + 1].z() - ref_points[i].z()};
+
+    // Eigen::Matrix3f  
     // 计算Rk[i]，使得其i第一列列向量与dir平行，其余两列单位列向量与其组成正交矩阵
     if (i == 0) {
         p0 = ref_points[0];
@@ -519,5 +532,8 @@ void get_param(const vec_Vec3f& ref_points, vector<float>& v_norm, vector<Mat3f>
         p2 = ref_points[i+1];
         Rk[i] = calculateTransformationMatrix(p0, p1, p2);
     }
+    
+      
   }
+
 }

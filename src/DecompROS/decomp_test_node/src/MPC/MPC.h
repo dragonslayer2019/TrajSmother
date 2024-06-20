@@ -117,12 +117,14 @@ public:
             iPuT[i] = PuT[i].inverse();
         }
         bar_x_init = PxT[0] * x_init;
-
+        
         std::array<Eigen::Matrix<T, SizeYx, SizeYx>, HorizonNum + 1> LambX;
         std::array<Eigen::Matrix<T, SizeYu, SizeYu>, HorizonNum + 1> LambU;
         Eigen::Matrix<T, SizeEqx, SizeX> LambXi;
         Eigen::Matrix<T, SizeEqu, SizeU> LambUi;
-        for(int i = 0; i <= HorizonNum; ++i) {
+        std::cout << "here" << std::endl;
+        for(int i = 0; i < HorizonNum; ++i) { //这里原来是<=,但是程序会崩溃，取不到49
+            std::cout << "loop: " << i << std::endl;
             // \bar{A}
             if (i < HorizonNum) {
                 barA[i] = PxT[i + 1] * A[i] * iPxT[i];
@@ -158,6 +160,7 @@ public:
             bET.d[i] = bE.d[i].transpose();
             bEx[i] = LambX[i] * Hx[i] * iPxT[i];
             bEu[i] = LambU[i] * Hu[i] * iPuT[i];
+            std::cout << "loop: " << i << std::endl;
         }
     }
 
@@ -401,9 +404,13 @@ public:
     }
 
     BlockVector<T, HorizonNum + 1, SizeX + SizeU> solve() {
+        std::cout << "start PreScaling1" << std::endl;
         PreScaling1();
+        std::cout << "finish PreScaling1" << std::endl;
         ADMMPrework1();
+         std::cout << "finish ADMMPrework1" << std::endl;
         BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIterationQuick();
+        std::cout << "finish ADMMIterationQuick" << std::endl;
         return res;
     }
 
