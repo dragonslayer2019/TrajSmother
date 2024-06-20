@@ -11,11 +11,11 @@ using namespace std;
 const int SizeX = 3, SizeU = 1;
 const int HorizonNum = 29;
 
-typedef Eigen::Matrix<double, SizeX, SizeX> MatrixX;
-typedef Eigen::Matrix<double, SizeU, SizeU> MatrixU;
-typedef Eigen::Matrix<double, SizeX, SizeU> MatrixB;
-typedef Eigen::Matrix<double, SizeX, 1> VectorX;
-typedef Eigen::Matrix<double, SizeU, 1> VectorU;
+typedef Eigen::Matrix<float, SizeX, SizeX> MatrixX;
+typedef Eigen::Matrix<float, SizeU, SizeU> MatrixU;
+typedef Eigen::Matrix<float, SizeX, SizeU> MatrixB;
+typedef Eigen::Matrix<float, SizeX, 1> VectorX;
+typedef Eigen::Matrix<float, SizeU, 1> VectorU;
 VectorX x_init;
 MatrixX Ai, Qi, Hxi;
 MatrixB Bi;

@@ -268,7 +268,7 @@ if __name__ == '__main__':
 
         if not args.local:
             # environment at generation time
-            CMAKE_PREFIX_PATH = r'/home/alan/catkin_ws/devel_isolated/decomp_test_node;/home/alan/catkin_ws/devel_isolated/decomp_ros_utils;/home/alan/catkin_ws/devel_isolated/decomp_util;/home/alan/catkin_ws/devel_isolated/decomp_ros_msgs;/home/alan/catkin_ws/devel_isolated/catkin_simple;/home/alan/vis_decomp/devel;/home/alan/smart_ws/devel;/home/alan/Plant_UAV/devel;/opt/ros/melodic'.split(';')
+            CMAKE_PREFIX_PATH = r'/home/alan/catkin_ws/devel_isolated/decomp_test_node;/home/alan/catkin_ws/devel_isolated/decomp_ros_utils;/home/alan/catkin_ws/devel_isolated/decomp_ros_msgs;/home/alan/catkin_ws/devel_isolated/catkin_simple;/home/alan/vis_decomp/devel;/home/alan/smart_ws/devel;/home/alan/Plant_UAV/devel;/opt/ros/melodic;/home/alan/catkin_ws/devel_isolated/decomp_util'.split(';')
         else:
             # don't consider any other prefix path than this one
             CMAKE_PREFIX_PATH = []

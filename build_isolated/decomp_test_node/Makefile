@@ -1415,33 +1415,6 @@ gtest/fast:
 	$(MAKE) -f gtest/googlemock/gtest/CMakeFiles/gtest.dir/build.make gtest/googlemock/gtest/CMakeFiles/gtest.dir/build
 .PHONY : gtest/fast
 
-src/MPC/test_ros.o: src/MPC/test_ros.cpp.o
-
-.PHONY : src/MPC/test_ros.o
-
-# target to build an object file
-src/MPC/test_ros.cpp.o:
-	$(MAKE) -f CMakeFiles/test_path_decomp_3d_ros.dir/build.make CMakeFiles/test_path_decomp_3d_ros.dir/src/MPC/test_ros.cpp.o
-.PHONY : src/MPC/test_ros.cpp.o
-
-src/MPC/test_ros.i: src/MPC/test_ros.cpp.i
-
-.PHONY : src/MPC/test_ros.i
-
-# target to preprocess a source file
-src/MPC/test_ros.cpp.i:
-	$(MAKE) -f CMakeFiles/test_path_decomp_3d_ros.dir/build.make CMakeFiles/test_path_decomp_3d_ros.dir/src/MPC/test_ros.cpp.i
-.PHONY : src/MPC/test_ros.cpp.i
-
-src/MPC/test_ros.s: src/MPC/test_ros.cpp.s
-
-.PHONY : src/MPC/test_ros.s
-
-# target to generate assembly for a file
-src/MPC/test_ros.cpp.s:
-	$(MAKE) -f CMakeFiles/test_path_decomp_3d_ros.dir/build.make CMakeFiles/test_path_decomp_3d_ros.dir/src/MPC/test_ros.cpp.s
-.PHONY : src/MPC/test_ros.cpp.s
-
 src/test_path_decomp_2d.o: src/test_path_decomp_2d.cpp.o
 
 .PHONY : src/test_path_decomp_2d.o
@@ -1522,6 +1495,33 @@ src/test_path_decomp_3d_fast.s: src/test_path_decomp_3d_fast.cpp.s
 src/test_path_decomp_3d_fast.cpp.s:
 	$(MAKE) -f CMakeFiles/test_path_decomp_3d_fast.dir/build.make CMakeFiles/test_path_decomp_3d_fast.dir/src/test_path_decomp_3d_fast.cpp.s
 .PHONY : src/test_path_decomp_3d_fast.cpp.s
+
+src/test_path_decomp_3d_fast_ros.o: src/test_path_decomp_3d_fast_ros.cpp.o
+
+.PHONY : src/test_path_decomp_3d_fast_ros.o
+
+# target to build an object file
+src/test_path_decomp_3d_fast_ros.cpp.o:
+	$(MAKE) -f CMakeFiles/test_path_decomp_3d_ros.dir/build.make CMakeFiles/test_path_decomp_3d_ros.dir/src/test_path_decomp_3d_fast_ros.cpp.o
+.PHONY : src/test_path_decomp_3d_fast_ros.cpp.o
+
+src/test_path_decomp_3d_fast_ros.i: src/test_path_decomp_3d_fast_ros.cpp.i
+
+.PHONY : src/test_path_decomp_3d_fast_ros.i
+
+# target to preprocess a source file
+src/test_path_decomp_3d_fast_ros.cpp.i:
+	$(MAKE) -f CMakeFiles/test_path_decomp_3d_ros.dir/build.make CMakeFiles/test_path_decomp_3d_ros.dir/src/test_path_decomp_3d_fast_ros.cpp.i
+.PHONY : src/test_path_decomp_3d_fast_ros.cpp.i
+
+src/test_path_decomp_3d_fast_ros.s: src/test_path_decomp_3d_fast_ros.cpp.s
+
+.PHONY : src/test_path_decomp_3d_fast_ros.s
+
+# target to generate assembly for a file
+src/test_path_decomp_3d_fast_ros.cpp.s:
+	$(MAKE) -f CMakeFiles/test_path_decomp_3d_ros.dir/build.make CMakeFiles/test_path_decomp_3d_ros.dir/src/test_path_decomp_3d_fast_ros.cpp.s
+.PHONY : src/test_path_decomp_3d_fast_ros.cpp.s
 
 src/test_seed_decomp.o: src/test_seed_decomp.cpp.o
 
@@ -1659,9 +1659,6 @@ help:
 	@echo "... gmock"
 	@echo "... gtest_main"
 	@echo "... gtest"
-	@echo "... src/MPC/test_ros.o"
-	@echo "... src/MPC/test_ros.i"
-	@echo "... src/MPC/test_ros.s"
 	@echo "... src/test_path_decomp_2d.o"
 	@echo "... src/test_path_decomp_2d.i"
 	@echo "... src/test_path_decomp_2d.s"
@@ -1671,6 +1668,9 @@ help:
 	@echo "... src/test_path_decomp_3d_fast.o"
 	@echo "... src/test_path_decomp_3d_fast.i"
 	@echo "... src/test_path_decomp_3d_fast.s"
+	@echo "... src/test_path_decomp_3d_fast_ros.o"
+	@echo "... src/test_path_decomp_3d_fast_ros.i"
+	@echo "... src/test_path_decomp_3d_fast_ros.s"
 	@echo "... src/test_seed_decomp.o"
 	@echo "... src/test_seed_decomp.i"
 	@echo "... src/test_seed_decomp.s"

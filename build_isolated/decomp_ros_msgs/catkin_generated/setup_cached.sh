@@ -7,3 +7,6 @@
 # new environment variables
 
 # modified environment variables
+export CMAKE_PREFIX_PATH="/home/alan/catkin_ws/devel_isolated/decomp_ros_msgs:$CMAKE_PREFIX_PATH"
+export ROSLISP_PACKAGE_DIRECTORIES="/home/alan/catkin_ws/devel_isolated/decomp_ros_msgs/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
+export ROS_PACKAGE_PATH="/home/alan/catkin_ws/src/DecompROS/decomp_ros_msgs:$ROS_PACKAGE_PATH"

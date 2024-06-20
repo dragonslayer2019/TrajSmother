@@ -1,5 +1,5 @@
-#include <decomp_test_node/bag_reader.hpp>
-#include <decomp_test_node/txt_reader.hpp>
+#include "bag_reader.hpp"
+#include "txt_reader.hpp"
 #include <decomp_ros_utils/data_ros_utils.h>
 #include <ros/ros.h>
 #include <decomp_util/ellipsoid_decomp.h>
@@ -7,6 +7,7 @@
 #include <nav_msgs/Path.h>
 #include <chrono>
 #include "presteps.h"
+
 
 int main(int argc, char ** argv){
   ros::init(argc, argv, "test");
@@ -39,15 +40,17 @@ int main(int argc, char ** argv){
   path_pub.publish(path_msg);
 
   auto start_time = std::chrono::high_resolution_clock::now();
-  // 计算凸走廊结果
+  //Using ellipsoid decomposition
   EllipsoidDecomp3D decomp_util;
   decomp_util.set_obs(obs);
   decomp_util.set_local_bbox(Vec3f(1, 2, 1));
-  decomp_util.dilate(path); //Set max iteration number of 10, do fix the path
+  decomp_util.dilate_fast(path); //Set max iteration number of 10, do fix the path
   auto end_time = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-  std::cout << "Time taken by get corridor: " << duration.count() << " microseconds " << std::endl;
-/*  
+  // auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end_time - start_time).count()*1000;
+  std::cout << "Time taken by code: " << duration.count() << " microseconds" << std::endl;
+  // std::cout << "tusen Time taken by code: " << duration << std::endl;
+
   // 计算路径曲率并平滑,基于曲率采样任意段弧长，经过标准化得到1 + HorizonNum个采样路点
   vec_Vec3f ref_points = get_sample_point(path);
 
@@ -87,7 +90,10 @@ int main(int argc, char ** argv){
   std::cout << "start solve MPC" << std::endl;
   solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk);
   std::cout << "end solveMpc" << std::endl;
-*/
+
+
+
+
   //Publish visualization msgs
   decomp_ros_msgs::EllipsoidArray es_msg = DecompROS::ellipsoid_array_to_ros(decomp_util.get_ellipsoids());
   es_msg.header.frame_id = "map";

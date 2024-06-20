@@ -1,12 +1,16 @@
-#include <decomp_test_node/bag_reader.hpp>
-#include <decomp_test_node/txt_reader.hpp>
-#include <decomp_ros_utils/data_ros_utils.h>
-#include <ros/ros.h>
+
+
+
+
 #include <decomp_util/ellipsoid_decomp.h>
 #include <sensor_msgs/point_cloud_conversion.h>
 #include <nav_msgs/Path.h>
 #include <chrono>
 #include "presteps.h"
+#include "bag_reader.hpp"
+#include "txt_reader.hpp"
+#include <decomp_ros_utils/data_ros_utils.h>
+#include <ros/ros.h>
 
 int main(int argc, char ** argv){
   ros::init(argc, argv, "test");

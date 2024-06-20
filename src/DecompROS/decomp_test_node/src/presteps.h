@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Eigen/Dense>
 #include <iostream>
 #include <vector>
@@ -46,7 +48,7 @@ const int SizeEqx = 11, SizeEqu = 0;
 const int NumEllx = 1, NumEllu = 2;
 const int SizeG = SizeEqx + NumEllx + SizeEqu + NumEllu;
 const int SizeYx = 14, SizeYu = 4;
-const int HorizonNum = 49;
+extern const int HorizonNum = 49;
 const float pi = M_PI;
 int KAcc = 150;
 const float inf = 1e5;
@@ -84,6 +86,7 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
         return false;
     }
 }
+
 
 void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
                  vector<Mat3f> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
@@ -237,7 +240,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
 
-    /*
+    
     MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
     // MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
     BlockVector<float, HorizonNum + 1, SizeX + SizeU> res = mpc.solve();
@@ -279,7 +282,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         out << j.dump(4) << endl;
         out.close();
     }
-    */
+    
     return;
 }
 
@@ -327,6 +330,7 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
     std::cout<<"time = "<<timeuse<<endl;  //输出时间（单位：ｓ）
     return 0;
 }
+
 
 
 // 计算两个三维点之间的欧氏距离
@@ -462,6 +466,7 @@ vec_Vec3f get_sample_point(vec_Vec3f& path) {
     }
     return ref_points;
 }
+
 
 // 计算变换矩阵的函数
 Eigen::Matrix3f calculateTransformationMatrix(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, const Eigen::Vector3f& p2) {
