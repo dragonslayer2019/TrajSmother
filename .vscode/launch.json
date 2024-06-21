@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ROS: Launch",
+            "request": "launch",
+            "target": "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/launch/test_path_decomp_3d_ros.launch",
+            "type": "ros"
+        },
+        {
+            "name": "Attach to ROS Node",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "/home/alan/catkin_ws/devel_isolated/decomp_test_node/lib/decomp_test_node",
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        }
+    ]
+}

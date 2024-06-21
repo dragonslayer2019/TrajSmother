@@ -120,15 +120,19 @@ public:
         
         std::array<Eigen::Matrix<T, SizeYx, SizeYx>, HorizonNum + 1> LambX;
         std::array<Eigen::Matrix<T, SizeYu, SizeYu>, HorizonNum + 1> LambU;
-        Eigen::Matrix<T, SizeEqx, SizeX> LambXi;
-        Eigen::Matrix<T, SizeEqu, SizeU> LambUi;
-        std::cout << "here" << std::endl;
-        for(int i = 0; i < HorizonNum; ++i) { //这里原来是<=,但是程序会崩溃，取不到49
-            std::cout << "loop: " << i << std::endl;
+        Eigen::Matrix<T, SizeEqx, SizeEqx> LambXi;
+        Eigen::Matrix<T, SizeEqu, SizeEqu> LambUi;
+    
+        for(int i = 0; i <= HorizonNum; ++i) { //这里原来是<=,但是程序会崩溃，取不到49
+        
+            // std::cout << "loop: " << i << std::endl;
+        
             // \bar{A}
             if (i < HorizonNum) {
                 barA[i] = PxT[i + 1] * A[i] * iPxT[i];
             }
+        
+            // std::cout << "here1" << std::endl;
             // \bar{b}
             if (i < HorizonNum) {
                 barB[i] = PxT[i + 1] * B[i] * iPuT[i];
@@ -140,29 +144,38 @@ public:
             }
             // \bar{F}
             bF.v[i] << iPx[i] * L[i], iPu[i] *  W[i];
-
+           
             // \Lambda_x, \Lambda_u
             LambXi = (Hx[i].block(0, 0, SizeEqx, SizeX) * iPxT[i]).rowwise().norm().asDiagonal().inverse();
+          
             LambX[i] << LambXi, Eigen::Matrix<T, SizeEqx, SizeYx-SizeEqx>::Zero(SizeEqx, SizeYx - SizeEqx),
                         Eigen::Matrix<T, SizeYx - SizeEqx, SizeEqx>::Zero(SizeYx - SizeEqx, SizeEqx), Eigen::Matrix<T, SizeYx - SizeEqx, SizeYx - SizeEqx>::Identity(SizeYx - SizeEqx, SizeYx - SizeEqx);
+        
             LambUi = (Hu[i].block(0, 0, SizeEqu, SizeU) * iPuT[i]).rowwise().norm().asDiagonal().inverse();
+         
             LambU[i] << LambUi, Eigen::Matrix<T, SizeEqu, SizeYu - SizeEqu>::Zero(SizeEqu, SizeYu - SizeEqu),
                         Eigen::Matrix<T, SizeYu - SizeEqu, SizeEqu>::Zero(SizeYu - SizeEqu, SizeEqu), Eigen::Matrix<T, SizeYu - SizeEqu, SizeYu - SizeEqu>::Identity(SizeYu - SizeEqu, SizeYu - SizeEqu);
-
+            
             for(int j = 0; j < SizeEqx; ++j) g[i][j].Prescaling(LambX[i].diagonal()(j));
-            for(int j = 0; j < SizeEqu; ++j) g[i][j + SizeEqu + NumEllx].Prescaling(LambU[i].diagonal()(j));
-
+            for(int j = 0; j < SizeEqu; ++j) g[i][j + SizeEqx + NumEllx].Prescaling(LambU[i].diagonal()(j));
             // (x,u) = barE * barz; w = bE * barz;
+            
             barE.d[i] << iPxT[i], Eigen::Matrix<T, SizeX, SizeU>::Zero(SizeX, SizeU),
                       Eigen::Matrix<T, SizeU, SizeX>::Zero(SizeU, SizeX), iPuT[i];
             bE.d[i] << LambX[i] * Hx[i] * iPxT[i], Eigen::Matrix<T, SizeYx, SizeU>::Zero(SizeYx, SizeU),
-                      Eigen::Matrix<T, SizeYu, SizeX>::Zero(SizeU, SizeX), LambU[i] * Hu[i] * iPuT[i];
+                      Eigen::Matrix<T, SizeYu, SizeX>::Zero(SizeYu, SizeX), LambU[i] * Hu[i] * iPuT[i];
             bET.d[i] = bE.d[i].transpose();
+            // std::cout << "here7" << std::endl;
             bEx[i] = LambX[i] * Hx[i] * iPxT[i];
             bEu[i] = LambU[i] * Hu[i] * iPuT[i];
-            std::cout << "loop: " << i << std::endl;
+            /**/
+            
+            // std::cout << "loop: " << i << std::endl;
         }
+        
+        // std::cout << "func finish: " << std::endl;
     }
+
 
     void ADMMPrework1() {
         Eigen::Matrix<T, SizeX, SizeX> Ix;
@@ -242,6 +255,7 @@ public:
 
     T CalculateCost(BlockVector<T, HorizonNum + 1, SizeX + SizeU> barz) {
         BlockVector<T, HorizonNum + 1, SizeX + SizeU> z = barE * barz;
+        // zhenzhengde pvmu
         BlockVectorW w = bE * barz;
         T res1 = 0, res2 = 0, res3 = 0;
         std::array<std::array<T, SizeG>, HorizonNum + 1> d;
@@ -280,6 +294,7 @@ public:
             for (int j = 0; j < SizeG; ++j) {
                 res2 += g[i][j].CostOfQuadraticPart(wi[j]);
                 d[j][i] = g[i][j].DistanceOfIndicatorPart(wi[j]);
+                std::cout << " step:" << i << "g{" << j <<"}" << "input:" << wi[j]<< " ,g value: " << g[i][j].CostOfQuadraticPart(wi[j]) << std::endl;
             }
         }
         for(int i = 0; i < HorizonNum; ++i) {
@@ -287,7 +302,7 @@ public:
                 res3 += costweight * (d[j][i + 1] - d[j][i] > 0 ? d[j][i + 1] - d[j][i] : 0);
             }
         }
-
+        // std::cout << "funcG: " << g[0][11].CostOfQuadraticPart(0.5);
         return res1 + res2 + res3;
     }
 
@@ -300,6 +315,7 @@ public:
         T min_cost = inf;
         std::vector<T> cvec;
         while(k <= K) {
+            barz.print();
             barz = LQR_Solver1(bF - (bET * (w + nu)) * (rho));
             w = G_Solver(barz, nu, rho);
             nu = nu + w - bE * barz;
@@ -341,7 +357,10 @@ public:
         T min_cost = inf;
         std::vector<T> cvec;
         int k_acc = KAcc < 0.6 * K ? KAcc : 0.6* K;
+        barz = LQR_Solver1(bF - (bET * (w + nu_minus)) * (rho));
         while(k <= K) {
+            if (k == K)
+                barz.print();
             // Nestrov Acceleration
             if (k < k_acc) {
                 float step = 1;
@@ -349,6 +368,8 @@ public:
                 //cout<<"test: "<<step / gamma<<' '<<step<<' '<<gamma<<endl;
                 nu_minus = nu * (1 - gamma) + lambda * gamma;
                 barz = LQR_Solver1(bF - (bET * (w + nu_minus)) * (rho));
+
+                
                 w = G_Solver(barz, nu_minus, rho);
                 lambda = lambda + (w - bE * barz) * (step / gamma);
                 nu = nu * (1 - gamma) + lambda * gamma;
@@ -402,16 +423,34 @@ public:
         cout << "Final Cost: " << min_cost << endl;
         return barE * res;
     }
-
+    
     BlockVector<T, HorizonNum + 1, SizeX + SizeU> solve() {
-        std::cout << "start PreScaling1" << std::endl;
+        // std::cout << "start PreScaling1" << std::endl;
         PreScaling1();
-        std::cout << "finish PreScaling1" << std::endl;
+        // std::cout << "finish PreScaling1" << std::endl;
         ADMMPrework1();
+        std::cout << "start PreScaling2" << std::endl;
+        // BlockVector<T, HorizonNum + 1, SizeX + SizeU> res;
+        // PreScaling2(res);
          std::cout << "finish ADMMPrework1" << std::endl;
-        BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIterationQuick();
+        BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIteration();
         std::cout << "finish ADMMIterationQuick" << std::endl;
         return res;
     }
+    
+
+    // void solve(BlockVector<T, HorizonNum + 1, SizeX + SizeU>& res) {
+    //     // std::cout << "start PreScaling1" << std::endl;
+    //     // PreScaling1();
+    //     // std::cout << "finish PreScaling1" << std::endl;
+    //     // ADMMPrework1();
+    //     std::cout << "start PreScaling2" << std::endl;
+    //     PreScaling2(res);
+    //     std::cout << "finish ADMMPrework1" << std::endl;
+    //     // BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIterationQuick();
+    //     std::cout << "finish ADMMIterationQuick" << std::endl;
+    //     return;
+    // }
+
 
 };

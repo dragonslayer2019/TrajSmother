@@ -136,7 +136,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
             Hxi(j,5) = 0;
             // 计算点到切平面距离中的const向量
             DistC[i][j] = -CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() - CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() - CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
-                         
+            std::cout << "DistC[i][j]" <<  i << "," << j << ":" <<  DistC[i][j] << std::endl;      
         }
                 
         // 1个到椭球圆心距离约束
@@ -184,9 +184,9 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         Qi << lamb1[i], 0, 0, 0, 0, 0,
               0, lamb1[i], 0, 0, 0, 0,
               0, 0, lamb1[i], 0, 0, 0,
-              0, 0, 0, 0, 0, 0,
-              0, 0, 0, 0, 0, 0,
-              0, 0, 0, 0, 0, 0;
+              0, 0, 0, 0.01, 0, 0,
+              0, 0, 0, 0, 0.01, 0,
+              0, 0, 0, 0, 0, 0.01;
         Li << -Px[i] * lamb1[i],
               -Py[i] * lamb1[i],
               -Pz[i] * lamb1[i],
@@ -195,8 +195,8 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
               0;
         // 限制纵向加速度
         Ri << lamb2[i], 0, 0,
-              0, 0, 0,
-              0, 0, 0;
+              0, 0.1, 0,
+              0, 0, 0.1;
         Wi << 0,
               0,
               0;
@@ -243,9 +243,37 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     }
 
     std::cout << "in solveunit3D" << std::endl;
+    // Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K
+    // std::cout << "print A" << std::endl;
+    // for (auto& a : A) {
+    //     std::cout << a << std::endl;
+    // }
+    // std::cout << "print B" << std::endl;
+    // for (auto& b : B) {
+    //     std::cout << b << std::endl;
+    // }
+    // std::cout << "print Hx" << std::endl;
+    // for (auto& hxi : Hx) {
+    //     std::cout << hxi << std::endl;
+    // }
+    std::cout << "print Hu" << std::endl;
+    for (auto& hui : Hu) {
+        std::cout << hui << std::endl;
+    }
+    std::cout << "print centerX" << std::endl;
+    for (auto& centerX : new_centerX) {
+        std::cout << centerX.transpose() << std::endl;
+    }
+    std::cout << "print centerU" << std::endl;
+    for (auto& centerU : new_centerU) {
+        std::cout << centerU.transpose() << std::endl;
+    }    
+    
+
     MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
     // MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
-   
+    // BlockVector<float, HorizonNum + 1, SizeX + SizeU> res;
+    // mpc.solve(res);
     BlockVector<float, HorizonNum + 1, SizeX + SizeU> res = mpc.solve();
      std::cout << "finish solveunit3D" << std::endl;
     
@@ -292,7 +320,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
 
 int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
-    K = 250;
+    K = 3;
     struct timeval T1,T2;
     float timeuse;
     gettimeofday(&T1,NULL);
@@ -306,25 +334,29 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
     Py.resize(HorizonNum+1);
     Pz.resize(HorizonNum+1);
 
-
+    // std::cout << "here1" << std::endl;
+    // std::cout << "ref_points size: " << ref_points.size() << std::endl;
+    // std::cout << "mpc_polyhedrons size: " << mpc_polyhedrons.size() << std::endl;
     for(int i = 0;i <= HorizonNum; ++i) {
+        std::cout << "loop: " << i << std::endl;
         // 切平面约束与椭球约束
         int plane_size = mpc_polyhedrons[i].hyperplanes().size();
         CorridorP[i].resize(plane_size);
         for (int j = 0; j < plane_size; j++) {
             CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
         }
+        std::cout << "loop: " << i << std::endl;
         // 用ref_points为Px、Py、Pz赋值
         Px[i] = ref_points[i].x();
         Py[i] = ref_points[i].y();
         Pz[i] = ref_points[i].z();
-
         // 代价权重赋值
         lamb1.push_back(1);
         lamb2.push_back(1);
         lamb3.push_back(1);
         lamb4.push_back(1);
         lamb5.push_back(1);
+        std::cout << "loop: " << i << std::endl;
     }
     std::cout << "start solveunit3D" << std::endl;
     solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, K);
@@ -456,18 +488,31 @@ vector<Eigen::Vector3f> get_sample_point(vector<Eigen::Vector3f>& path) {
 
     
     // 标准化参考路径点数为1 + HorizonNum
-    vector<Eigen::Vector3f> ref_points;
-    ref_points.resize(HorizonNum + 1);
-    if (resampled_points.size() - 1 < HorizonNum) {
+    vector<Eigen::Vector3f> ref_points(HorizonNum + 1);
+    int back_id = resampled_points.size() - 1;
+    if (back_id < HorizonNum) {
         std::copy(resampled_points.begin(), resampled_points.end(), ref_points.begin());
-        std::fill(ref_points.begin() + resampled_points.size(), ref_points.end(), resampled_points.back());
+        // 计算最后的path方向
+        Eigen::Vector3f direction = (resampled_points[back_id] - resampled_points[back_id - 1]).normalized();
+
+        // std::cout << "back id: " << back_id << "dir: " << direction << std::endl;
+        // 延长point
+        for (int i = 1; i < HorizonNum+1-back_id; i++) {
+            Eigen::Vector3f new_point = resampled_points[back_id] + direction * i * 0.5f;
+            ref_points[back_id + i] = new_point;
+        }
     } else {
+        std::cout << "path length enough" << std::endl;
         std::copy(resampled_points.begin(), resampled_points.begin() + HorizonNum + 1, ref_points.begin());
     }
     // std::cout << "Resampled Path Points:" << std::endl;
     // for (const auto& point : ref_points) {
     //     std::cout << "(" << point.x() << ", " << point.y() << ", " << point.z() << ")" << std::endl;
     // }
+    std::cout << "ref_points size: " << ref_points.size() << std::endl;
+    for (const auto& point : ref_points) {
+        std::cout << point.transpose() << std::endl;
+    }
     return ref_points;
 }
 
@@ -511,8 +556,16 @@ void get_param(const vector<Eigen::Vector3f>& ref_points, vector<float>& v_norm,
   for (int i = 0; i < HorizonNum; ++i) {
     
     float dis = distance(ref_points[i], ref_points[i+1]);
-    v_norm[i] = dis/s_max*v_max;
+    if (fabs(dis) < 0.01) {
+        std::cout << "hard code v_norm!!!!!!!!!!" << std::endl;
+        v_norm[i] = 1.0;
+    } else {
+        // v_norm[i] = dis/s_max*v_max;
+        v_norm[i] = 1.0;
+    } 
+    
     dt[i] = (dis/v_norm[i]);
+    // std::cout << " dis/ v_norm/ dt " << i << " : " <<  dis << ", " << v_norm[i] << ", " << dt[i] << std::endl;
 
     // Eigen::Matrix3f  
     // 计算Rk[i]，使得其i第一列列向量与dir平行，其余两列单位列向量与其组成正交矩阵

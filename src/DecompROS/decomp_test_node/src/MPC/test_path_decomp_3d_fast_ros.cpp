@@ -1,5 +1,5 @@
-#include "/home/alan/TrajSmother/src/DecompROS/decomp_test_node/src/bag_reader.hpp"
-#include "/home/alan/TrajSmother/src/DecompROS/decomp_test_node/src/txt_reader.hpp"
+#include "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/src/bag_reader.hpp"
+#include "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/src/txt_reader.hpp"
 #include <decomp_ros_utils/data_ros_utils.h>
 #include <ros/ros.h>
 #include <decomp_util/ellipsoid_decomp.h>
@@ -33,6 +33,23 @@ int main(int argc, char ** argv){
   vec_Vec3f path;
   if(!read_path<3>(path_file, path))
     ROS_ERROR("Fail to read a path!");
+
+  // check path length
+  float min_length = HorizonNum * 0.5;
+  float length = 0;
+  for (int i = 0; i < path.size()-1; i++) {
+    length += distance(path[i].cast<float>(), path[i+1].cast<float>());
+  }
+  if (length < min_length) {
+    // 补一个点令path足够长
+    int back_id = path.size() - 1; 
+    float delta = 1.0f;
+    Eigen::Vector3f direction = (path[back_id].cast<float>() - path[back_id - 1].cast<float>()).normalized();
+    Eigen::Vector3d added_point = path[back_id] + (direction * (min_length - length + delta)).cast<double>();
+    // std::cout << "back id: " << back_id << "dir: " << direction << std::endl;
+    // 延长point
+    path.push_back(added_point);
+  }
 
   nav_msgs::Path path_msg = DecompROS::vec_to_path(path);
   path_msg.header.frame_id = "map";
@@ -85,6 +102,7 @@ int main(int argc, char ** argv){
   std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE;
   
   for (int i = 0; i <= HorizonNum; ++i) {
+    std::cout << "step: " << i << std::endl;
     //判断路点处于哪段，并范回对应的段数id
     for (int j = 0; j < path_f.size()-1;j++){
       if(isPointOnSegment(path_f[j], path_f[j+1], ref_points[i])) {
