@@ -91,7 +91,7 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
 void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
                  vector<Eigen::Matrix<float, 3, 3>> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
                  vector<float> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX,
-                 std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, int K = 250) {
+                 std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res, int K = 250) {
 
     std::array<MatrixX, HorizonNum + 1> Q;
     std::array<MatrixU, HorizonNum + 1> R;
@@ -136,7 +136,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
             Hxi(j,5) = 0;
             // 计算点到切平面距离中的const向量
             DistC[i][j] = -CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() - CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() - CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
-            std::cout << "DistC[i][j]" <<  i << "," << j << ":" <<  DistC[i][j] << std::endl;      
+            // std::cout << "DistC[i][j]" <<  i << "," << j << ":" <<  DistC[i][j] << std::endl;      
         }
                 
         // 1个到椭球圆心距离约束
@@ -256,25 +256,26 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     // for (auto& hxi : Hx) {
     //     std::cout << hxi << std::endl;
     // }
-    std::cout << "print Hu" << std::endl;
-    for (auto& hui : Hu) {
-        std::cout << hui << std::endl;
-    }
-    std::cout << "print centerX" << std::endl;
-    for (auto& centerX : new_centerX) {
-        std::cout << centerX.transpose() << std::endl;
-    }
-    std::cout << "print centerU" << std::endl;
-    for (auto& centerU : new_centerU) {
-        std::cout << centerU.transpose() << std::endl;
-    }    
+    // std::cout << "print Hu" << std::endl;
+    // for (auto& hui : Hu) {
+    //     std::cout << hui << std::endl;
+    // }
+    // std::cout << "print centerX" << std::endl;
+    // for (auto& centerX : new_centerX) {
+    //     std::cout << centerX.transpose() << std::endl;
+    // }
+    // std::cout << "print centerU" << std::endl;
+    // for (auto& centerU : new_centerU) {
+    //     std::cout << centerU.transpose() << std::endl;
+    // }    
     
 
     MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
     // MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
     // BlockVector<float, HorizonNum + 1, SizeX + SizeU> res;
     // mpc.solve(res);
-    BlockVector<float, HorizonNum + 1, SizeX + SizeU> res = mpc.solve();
+    // BlockVector<float, HorizonNum + 1, SizeX + SizeU> res = mpc.solve();
+    res = mpc.solve();
      std::cout << "finish solveunit3D" << std::endl;
     
 
@@ -297,10 +298,18 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         jvz.push_back(res.v[i](5, 0));
         ju.push_back(res.v[i](6, 0));
     }
-    std::cout << "px: ";
+    std::cout << "px:        ";
     for(int i = 0; i <= HorizonNum; ++i) {
         std::cout << " " <<res.v[i](0, 0) << std::endl;
     }
+    std::cout << "py:            ";
+    for(int i = 0; i <= HorizonNum; ++i) {
+        std::cout << " " <<res.v[i](1, 0) << std::endl;
+    }
+    std::cout << "pz:       ";
+    for(int i = 0; i <= HorizonNum; ++i) {
+        std::cout << " " <<res.v[i](2, 0) << std::endl;
+    }    
     j["x"] = jx;
     j["y"] = jy;
     j["z"] = jz;
@@ -318,9 +327,9 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
-    K = 3;
+    K = 150;
     struct timeval T1,T2;
     float timeuse;
     gettimeofday(&T1,NULL);
@@ -338,28 +347,28 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
     // std::cout << "ref_points size: " << ref_points.size() << std::endl;
     // std::cout << "mpc_polyhedrons size: " << mpc_polyhedrons.size() << std::endl;
     for(int i = 0;i <= HorizonNum; ++i) {
-        std::cout << "loop: " << i << std::endl;
+        // std::cout << "loop: " << i << std::endl;
         // 切平面约束与椭球约束
         int plane_size = mpc_polyhedrons[i].hyperplanes().size();
         CorridorP[i].resize(plane_size);
         for (int j = 0; j < plane_size; j++) {
             CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
         }
-        std::cout << "loop: " << i << std::endl;
+        // std::cout << "loop: " << i << std::endl;
         // 用ref_points为Px、Py、Pz赋值
         Px[i] = ref_points[i].x();
         Py[i] = ref_points[i].y();
         Pz[i] = ref_points[i].z();
         // 代价权重赋值
         lamb1.push_back(1);
-        lamb2.push_back(1);
-        lamb3.push_back(1);
-        lamb4.push_back(1);
-        lamb5.push_back(1);
-        std::cout << "loop: " << i << std::endl;
+        lamb2.push_back(0.1);
+        lamb3.push_back(0);
+        lamb4.push_back(0);
+        lamb5.push_back(0);
+        // std::cout << "loop: " << i << std::endl;
     }
     std::cout << "start solveunit3D" << std::endl;
-    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, K);
+    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
     std::cout<<"time = "<<timeuse<<endl;  //输出时间（单位：ｓ）
@@ -509,10 +518,10 @@ vector<Eigen::Vector3f> get_sample_point(vector<Eigen::Vector3f>& path) {
     // for (const auto& point : ref_points) {
     //     std::cout << "(" << point.x() << ", " << point.y() << ", " << point.z() << ")" << std::endl;
     // }
-    std::cout << "ref_points size: " << ref_points.size() << std::endl;
-    for (const auto& point : ref_points) {
-        std::cout << point.transpose() << std::endl;
-    }
+    // std::cout << "ref_points size: " << ref_points.size() << std::endl;
+    // for (const auto& point : ref_points) {
+    //     std::cout << point.transpose() << std::endl;
+    // }
     return ref_points;
 }
 

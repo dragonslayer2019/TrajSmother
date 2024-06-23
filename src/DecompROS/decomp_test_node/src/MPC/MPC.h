@@ -204,20 +204,32 @@ public:
         std::array<VectorU, HorizonNum + 1> r_lqr;
         std::array<VectorX, HorizonNum + 1> E_lqr;
         std::array<VectorX, HorizonNum + 1> Fr_lqr;
+        for (auto &mat : r_lqr) {
+            mat.setZero();
+        }
+        for (auto &mat : E_lqr) {
+            mat.setZero();
+        }
+        for (auto &mat : Fr_lqr) {
+            mat.setZero();
+        }
+
         E_lqr[HorizonNum] = f.v[HorizonNum].block(0, 0, SizeX, 1);
         for (int i = HorizonNum - 1; i >= 0; --i) {
+            // i = 40的时候E_lqr里有nan
             r_lqr[i] = 0.5 * G_lqr[i] * (BTPc[i] - barBT[i] * E_lqr[i + 1] - f.v[i].block(SizeX, 0, SizeU, 1));
             Fr_lqr[i] = barB[i] * r_lqr[i];
             E_lqr[i] = 2 * FTP[i] * (Fr_lqr[i] + barc[i]) + Fx_lqr[i].transpose() * E_lqr[i + 1] + 2 * KRT[i] * r_lqr[i] + f.v[i].block(0, 0, SizeX, 1) + K_lqr[i] * f.v[i].block(SizeX, 0, SizeU, 1);
         }
-        BlockVectorComb res;
-        res.v[0].block(0, 0, SizeX, 1) = bar_x_init;
-        res.v[HorizonNum].block(SizeX, 0, SizeU, 1) = -0.5 * R_lqr[HorizonNum].inverse() * f.v[HorizonNum].block(SizeX, 0, SizeU, 1);
+        BlockVectorComb result;
+        result.setZero();
+        result.v[0].block(0, 0, SizeX, 1) = bar_x_init;
+        result.v[HorizonNum].block(SizeX, 0, SizeU, 1) = -0.5 * R_lqr[HorizonNum].inverse() * f.v[HorizonNum].block(SizeX, 0, SizeU, 1);
         for (int i = 0; i < HorizonNum; ++i) {
-            res.v[i + 1].block(0, 0, SizeX, 1) = Fx_lqr[i] * res.v[i].block(0, 0, SizeX, 1) + Fr_lqr[i] + barc[i];
-            res.v[i].block(SizeX, 0, SizeU, 1) = K_lqr[i].transpose() * res.v[i].block(0, 0, SizeX, 1) + r_lqr[i];
+            result.v[i + 1].block(0, 0, SizeX, 1) = Fx_lqr[i] * result.v[i].block(0, 0, SizeX, 1) + Fr_lqr[i] + barc[i]; // 第二轮Fr_lqr里全是nan
+            result.v[i].block(SizeX, 0, SizeU, 1) = K_lqr[i].transpose() * result.v[i].block(0, 0, SizeX, 1) + r_lqr[i]; // 第二轮r_lqr里全是nan
         }
-        return res;
+        return result;
     }
     
     BlockVectorW G_Solver(BlockVectorComb barz, BlockVectorW nu, T rho) {
@@ -233,7 +245,7 @@ public:
                 Eigen::Matrix<T, Eigen::Dynamic, 1> new_center = new_centerX[i].block(cntx, 0, SizeEllx[k], 1);
                 T L = std::sqrt((new_center - d).transpose() * (new_center - d));
                 T res = g[i][SizeEqx + k].Minimizer(L, rho);
-                u.v[i].block(SizeEqx + cntx, 0, SizeEllx[k], 1) = res / L * (d - new_center) + new_center;
+                u.v[i].block(SizeEqx + cntx, 0, SizeEllx[k], 1) = res / std::max(L, 1e-5f) * (d - new_center) + new_center;
                 cntx += SizeEllx[k];
             }
             for (int j = 0; j < SizeEqu; j++) {
@@ -242,11 +254,11 @@ public:
             }
             int cntu = 0;
             for (int k = 0; k < NumEllu; k++) {
-                Eigen::Matrix<T, Eigen::Dynamic, 1> d = u.v[i].block(SizeYx + SizeEqu + cntu, 0, SizeEllu[k], 1);
-                Eigen::Matrix<T, Eigen::Dynamic, 1> new_center = new_centerU[i].block(cntu, 0, SizeEllu[k], 1);
-                T L = std::sqrt((new_center - d).transpose() * (new_center - d));
+                Eigen::Matrix<T, Eigen::Dynamic, 1> d = u.v[i].block(SizeYx + SizeEqu + cntu, 0, SizeEllu[k], 1);// (0,0)^T
+                Eigen::Matrix<T, Eigen::Dynamic, 1> new_center = new_centerU[i].block(cntu, 0, SizeEllu[k], 1);// (0,0)^T
+                T L = std::sqrt((new_center - d).transpose() * (new_center - d));// 0
                 T res = g[i][SizeEqx + NumEllx + SizeEqu + k].Minimizer(L, rho);
-                u.v[i].block(SizeYx + SizeEqu + cntu, 0, SizeEllu[k], 1) = res / L * (d - new_center) + new_center;
+                u.v[i].block(SizeYx + SizeEqu + cntu, 0, SizeEllu[k], 1) = res / std::max(L, 1e-5f) * (d - new_center) + new_center;// 除0了
                 cntx += SizeEllu[k];
             }
         }
@@ -261,10 +273,10 @@ public:
         std::array<std::array<T, SizeG>, HorizonNum + 1> d;
         for(int i = 0; i <= HorizonNum; ++i) {
             VectorX x = z.v[i].block(0, 0, SizeX, 1);
-            VectorU u = z.v[i].block(SizeX, 0, SizeU, 1);
+            VectorU u1 = z.v[i].block(SizeX, 0, SizeU, 1);
             res1 += 0.5 * x.transpose() * (Q[i] * x) + L[i].dot(x);
-            VectorU v = R[i] * u;
-            res1 += 0.5 * u.transpose() * v + W[i].dot(u);
+            VectorU v = R[i] * u1;
+            res1 += 0.5 * u1.transpose() * v + W[i].dot(u1);
             VectorX Li = Q[i].inverse() * L[i];
             VectorU Wi = R[i].inverse() * W[i];
             res1 += 0.5 * L[i].transpose() * Li;
@@ -294,8 +306,9 @@ public:
             for (int j = 0; j < SizeG; ++j) {
                 res2 += g[i][j].CostOfQuadraticPart(wi[j]);
                 d[j][i] = g[i][j].DistanceOfIndicatorPart(wi[j]);
-                std::cout << " step:" << i << "g{" << j <<"}" << "input:" << wi[j]<< " ,g value: " << g[i][j].CostOfQuadraticPart(wi[j]) << std::endl;
+                // std::cout << " step:" << i << "g{" << j <<"}" << "input:" << wi[j]<< " ,g value: " << g[i][j].CostOfQuadraticPart(wi[j]) << std::endl;
             }
+
         }
         for(int i = 0; i < HorizonNum; ++i) {
             for (int j = 0; j < SizeG; ++j) {
@@ -315,8 +328,11 @@ public:
         T min_cost = inf;
         std::vector<T> cvec;
         while(k <= K) {
-            barz.print();
-            barz = LQR_Solver1(bF - (bET * (w + nu)) * (rho));
+            // barz.print();
+            BlockVectorComb f = bF - (bET * (w + nu)) * (rho);
+            // f.print();
+            barz = LQR_Solver1(f);
+            // barz.print();
             w = G_Solver(barz, nu, rho);
             nu = nu + w - bE * barz;
             k++;
@@ -327,7 +343,7 @@ public:
                     res = barz;
                     min_cost = cost;
                 }
-                cout << "Episodes: " << k << ' ' << cost << endl;
+                // cout << "Episodes: " << k << ' ' << cost << endl;
             }
         }
 
@@ -383,7 +399,7 @@ public:
                         w_best = w;
                         min_cost = cost;
                     }
-                    cout << "Episodes: " << k << ' ' << cost << endl;
+                    // cout << "Episodes: " << k << ' ' << cost << endl;
                 }
             } else { // Normal Iteration
                 if (k == k_acc) {
@@ -403,7 +419,7 @@ public:
                         res = barz;
                         min_cost = cost;
                     }
-                    cout << "Episodes: " << k << ' ' << cost << endl;
+                    // cout << "Episodes: " << k << ' ' << cost << endl;
                 }
             }
         }
@@ -429,10 +445,10 @@ public:
         PreScaling1();
         // std::cout << "finish PreScaling1" << std::endl;
         ADMMPrework1();
-        std::cout << "start PreScaling2" << std::endl;
+        // std::cout << "start PreScaling2" << std::endl;
         // BlockVector<T, HorizonNum + 1, SizeX + SizeU> res;
         // PreScaling2(res);
-         std::cout << "finish ADMMPrework1" << std::endl;
+        // std::cout << "finish ADMMPrework1" << std::endl;
         BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIteration();
         std::cout << "finish ADMMIterationQuick" << std::endl;
         return res;

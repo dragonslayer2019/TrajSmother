@@ -1,5 +1,7 @@
-#include "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/src/bag_reader.hpp"
-#include "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/src/txt_reader.hpp"
+// #include "/home/alan/TrajSmother/src/DecompROS/decomp_test_node/src/bag_reader.hpp"
+// #include "/home/alan/TrajSmother/src/DecompROS/decomp_test_node/src/txt_reader.hpp"
+#include "../bag_reader.hpp"
+#include "../txt_reader.hpp"
 #include <decomp_ros_utils/data_ros_utils.h>
 #include <ros/ros.h>
 #include <decomp_util/ellipsoid_decomp.h>
@@ -14,6 +16,7 @@ int main(int argc, char ** argv){
 
   ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud>("cloud", 1, true);
   ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("path", 1, true);
+  ros::Publisher smoothed_path_pub = nh.advertise<nav_msgs::Path>("smooth_path", 1, true);
   ros::Publisher es_pub = nh.advertise<decomp_ros_msgs::EllipsoidArray>("ellipsoid_array", 1, true);
   ros::Publisher poly_pub = nh.advertise<decomp_ros_msgs::PolyhedronArray>("polyhedron_array", 1, true);
 
@@ -98,11 +101,13 @@ int main(int argc, char ** argv){
 
   std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX;
   std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU;
+  for (auto& mat : new_centerU) {
+    mat.setZero();
+  }
   // std::array<Mat3f, HorizonNum + 1> elliE;
   std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE;
   
   for (int i = 0; i <= HorizonNum; ++i) {
-    std::cout << "step: " << i << std::endl;
     //判断路点处于哪段，并范回对应的段数id
     for (int j = 0; j < path_f.size()-1;j++){
       if(isPointOnSegment(path_f[j], path_f[j+1], ref_points[i])) {
@@ -115,7 +120,9 @@ int main(int argc, char ** argv){
   }
 
   std::cout << "start solve MPC" << std::endl;
-  solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk);
+  BlockVector<float, HorizonNum + 1, SizeX + SizeU> res;
+  res.setZero();
+  solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res);
   std::cout << "end solveMpc" << std::endl;
 
 
@@ -127,6 +134,18 @@ int main(int argc, char ** argv){
   decomp_ros_msgs::PolyhedronArray poly_msg = DecompROS::polyhedron_array_to_ros(decomp_util.get_polyhedrons());
   poly_msg.header.frame_id = "map";
   poly_pub.publish(poly_msg);
+
+
+  // 输出优化后的路径
+  vec_Vec3f smooth_path(HorizonNum+1);
+  Eigen::Vector3f temp;
+  for (int i = 0; i <= HorizonNum; i++) {
+    temp << res.v[i](0, 0), res.v[i](1, 0), res.v[i](2, 0);
+    smooth_path[i] = temp.cast<double>();
+  }
+  nav_msgs::Path smooth_path_msg = DecompROS::vec_to_path(smooth_path);
+  smooth_path_msg.header.frame_id = "map";
+  smoothed_path_pub.publish(smooth_path_msg);
 
     //Convert to inequality constraints Ax < b
   auto polys = decomp_util.get_polyhedrons();
