@@ -218,11 +218,34 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         // 凸走廊切平面罚函数
         int M = CorridorP[i].size();
         for (int j = 0; j < M; j++) {
-            ppp[0] = -inf;ppp[1] = 0.2;ppp[2] = 1;ppp[3] = inf;
-            aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
-            aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 2.45);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45);
-            aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
-            g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
+            // ppp[0] = -inf;ppp[1] = 0.2;ppp[2] = 1;ppp[3] = inf;
+            // ppp[0] = -inf;ppp[1] = 0.2+DistC[i][j];ppp[2] = 1+DistC[i][j];ppp[3] = inf;
+            // aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
+            // aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 2.45);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45);
+            // aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
+            // g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
+            // if (j < 5) {
+            //     ppp[0] = -inf;ppp[1] = 0.2+DistC[i][j];ppp[2] = 1+DistC[i][j];ppp[3] = inf;
+            //     aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
+            //     aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 2.45);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45);
+            //     aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
+            //     g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
+            // } 
+            // if (j < 5) {
+            //     ppp[0] = -inf;ppp[1] = 0.1-DistC[i][j];ppp[2] = 0.5-DistC[i][j];ppp[3] = inf;
+            //     aaa[0] = lamb5[i]*3;bbb[0] = lamb5[i]*(-10.3 + 6*DistC[i][j]);ccc[0] = lamb5[i]*(3*DistC[i][j]*DistC[i][j] - 10.3*DistC[i][j] + 2);
+            //     aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 3.1);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 3.1*DistC[i][j] + 0.68);
+            //     aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
+            //     g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
+            // } 
+            // else
+            // {
+            //     ppp[0] = -inf;ppp[1] = 0;ppp[2] = inf;
+            //     aaa[0] =0;bbb[0] = 0;ccc[0] = 0;
+            //     aaa[1] = 0;bbb[1] = 0;ccc[1] = 0;
+            //     g[i][j].AddQuadratic(2, aaa, bbb, ccc, ppp);              
+            // }
+
         }
         
         // 凸走廊椭球罚函数
@@ -240,10 +263,15 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         g[i][M+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
         // 曲率罚函数
-        ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
+        // ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
+        // aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
+        // aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
+        // aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
+        // g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
+        ppp[0] = -inf;ppp[1] = 2.0;ppp[2] = 4.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
-        aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
+        aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-4);
+        aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-148);
         g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
 
@@ -366,10 +394,10 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         Pz[i] = ref_points[i].z();
         // 代价权重赋值
         lamb1.push_back(1);
-        lamb2.push_back(0.1);
-        lamb3.push_back(0);
-        lamb4.push_back(0);
-        lamb5.push_back(0);
+        lamb2.push_back(0.1);//纵向加速度
+        lamb3.push_back(0);//信赖域约束
+        lamb4.push_back(1.0);//曲率过大
+        lamb5.push_back(0);//凸走廊约束
         // std::cout << "loop: " << i << std::endl;
     }
     std::cout << "start solveunit3D" << std::endl;
