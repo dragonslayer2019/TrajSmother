@@ -16,6 +16,7 @@ int main(int argc, char ** argv){
 
   ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud>("cloud", 1, true);
   ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("path", 1, true);
+  ros::Publisher ref_path_pub = nh.advertise<nav_msgs::Path>("ref_path_path", 1, true);
   ros::Publisher smoothed_path_pub = nh.advertise<nav_msgs::Path>("smooth_path", 1, true);
   ros::Publisher es_pub = nh.advertise<decomp_ros_msgs::EllipsoidArray>("ellipsoid_array", 1, true);
   ros::Publisher poly_pub = nh.advertise<decomp_ros_msgs::PolyhedronArray>("polyhedron_array", 1, true);
@@ -78,6 +79,16 @@ int main(int argc, char ** argv){
   }
   vector<Eigen::Vector3f> ref_points = get_sample_point(path_f);
 
+  // 参考路径可视化
+  vec_Vec3f ref_path(HorizonNum+1);
+  Eigen::Vector3f temp1;
+  for (int i = 0; i <= HorizonNum; i++) {
+    ref_path[i] = ref_points[i].cast<double>();
+  }
+  nav_msgs::Path ref_path_msg = DecompROS::vec_to_path(ref_path);
+  ref_path_msg.header.frame_id = "map";
+  ref_path_pub.publish(ref_path_msg);
+
   // 基于弧长长度与最大单位弧长长度插值求解v，根据弧长vector与对应的V求解非均匀dt，根据v的方向计算rk
   vector<float> v_norm, dt;
   // vector<Mat3f> Rk;
@@ -113,7 +124,11 @@ int main(int argc, char ** argv){
       if(isPointOnSegment(path_f[j], path_f[j+1], ref_points[i])) {
         mpc_polyhedrons.push_back(polyhedrons[j]);
         elliE[i] = E_inverse[j];
-        new_centerX[i] = E_inverse_d[j];
+        new_centerX[i].block(0, 0, 3, 1) = E_inverse_d[j];
+        Eigen::Vector3f vk = (ref_path[i+1] - ref_path[i]).cast<float>().normalized()*v_norm[i];
+        Eigen::Matrix<float, 3, 1> v_center;
+        v_center << vk[0], vk[1], vk[2]; 
+        new_centerX[i].block(3, 0, 3, 1) = v_center;
         break;
       }
     }
@@ -136,7 +151,7 @@ int main(int argc, char ** argv){
   poly_pub.publish(poly_msg);
 
 
-  // 输出优化后的路径
+  // 优化后的路径可视化
   vec_Vec3f smooth_path(HorizonNum+1);
   Eigen::Vector3f temp;
   for (int i = 0; i <= HorizonNum; i++) {
@@ -147,7 +162,12 @@ int main(int argc, char ** argv){
   smooth_path_msg.header.frame_id = "map";
   smoothed_path_pub.publish(smooth_path_msg);
 
-    //Convert to inequality constraints Ax < b
+  for (int i = 0; i <= HorizonNum; i++) {
+    float dis = distance(ref_path[i].cast<float>(), smooth_path[i].cast<float>());
+    std::cout << "dis " << i << ": " << dis <<std::endl;
+  }
+
+  //Convert to inequality constraints Ax < b
   auto polys = decomp_util.get_polyhedrons();
   for(size_t i = 0; i < path.size() - 1; i++) {
     const auto pt_inside = (path[i] + path[i+1]) / 2;

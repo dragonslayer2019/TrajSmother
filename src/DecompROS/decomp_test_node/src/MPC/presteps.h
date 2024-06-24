@@ -45,14 +45,14 @@ VectorU Wi;
 // MPC步数、状态变量个数、控制变量个数、5个切平面+6个bbox约束+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
 const int SizeX = 6, SizeU = 3;
 const int SizeEqx = 11, SizeEqu = 0;
-const int NumEllx = 1, NumEllu = 2;
+const int NumEllx = 2, NumEllu = 1;
 const int SizeG = SizeEqx + NumEllx + SizeEqu + NumEllu;
-const int SizeYx = 14, SizeYu = 4;
+const int SizeYx = 17, SizeYu = 2;
 const int HorizonNum = 49;
 const float pi = M_PI;
 int KAcc = 150;
 const float inf = 1e5;
-int SizeEllx[NumEllx] = {3}, SizeEllu[2] = {2,2};
+int SizeEllx[NumEllx] = {3,3}, SizeEllu[2] = {2};
 
 typedef Eigen::Matrix<float, SizeX, SizeX> MatrixX;
 typedef Eigen::Matrix<float, SizeU, SizeU> MatrixU;
@@ -118,7 +118,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     // 状态变量(px, py, pz, vx, vy, vz)^T
     // 控制输入(mu1, mu2, mu3)^T
     VectorX x_init;
-    x_init << 5, 9.5, 0.5, 3, 3, 3;
+    x_init << 5, 11.5, 0.5, 1, 0, 0;
 
 
 
@@ -149,10 +149,14 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
             Hxi(M+k, 5) = 0;
         }
 
+        // 1个信赖域约束
+        Hxi.block(M+3, 0, 3, 6).setZero();
+        Hxi(M+3, 3) = 1;
+        Hxi(M+4, 4) = 1;
+        Hxi(M+5, 5) = 1;
+
         // 此处为一个曲率平方约束+一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
         Hui << 0, 1, 0,
-               0, 0, 1,
-               0, 1, 0,
                0, 0, 1;
         Hx[i] = Hxi;
         Hu[i] = Hui;
@@ -195,8 +199,8 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
               0;
         // 限制纵向加速度
         Ri << lamb2[i], 0, 0,
-              0, 0.1, 0,
-              0, 0, 0.1;
+              0, 1.0, 0,
+              0, 0, 1.0;
         Wi << 0,
               0,
               0;
@@ -215,8 +219,8 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         int M = CorridorP[i].size();
         for (int j = 0; j < M; j++) {
             ppp[0] = -inf;ppp[1] = 0.2;ppp[2] = 1;ppp[3] = inf;
-            aaa[0] = 10;bbb[0] = -22 + 20*DistC[i][j];ccc[0] = 10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5;
-            aaa[1] = 1;bbb[1] = 2*DistC[i][j] - 2.45;ccc[1] = DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45;
+            aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
+            aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 2.45);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45);
             aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
             g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
         }
@@ -224,21 +228,22 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         // 凸走廊椭球罚函数
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 1.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = 1; bbb[1] = 0; ccc[1] = -0.25; 
-        aaa[2] = 10; bbb[2] = 0; ccc[2] = -9.25;
+        aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.25); 
+        aaa[2] = lamb5[i]*10; bbb[2] = 0; ccc[2] = lamb5[i]*(-9.25);
         g[i][M].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
-        // 曲率平方约束
-        ppp[0] = -inf;ppp[1] = 0;ppp[2] = inf;
+        // 信赖域约束
+        ppp[0] = -inf;ppp[1] = 0;ppp[2] = 0.3*v_norm[i];ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = 1; bbb[1] = 0; ccc[1] = 0;
-        g[i][M+1].AddQuadratic(2, aaa, bbb, ccc, ppp);
+        aaa[1] = lamb3[i]; bbb[1] = 0; ccc[1] = 0;
+        aaa[2] = lamb3[i]*10; bbb[2] = 0; ccc[2] = lamb3[i]*(-9)*(0.3*v_norm[i])*(0.3*v_norm[i]);
+        g[i][M+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
         // 曲率罚函数
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = 1; bbb[1] = 0; ccc[1] = -0.25;
-        aaa[2] = 10; bbb[2] = 0; ccc[2] = -36.25;
+        aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
+        aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
         g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
 
@@ -329,7 +334,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
 
 int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
-    K = 150;
+    cin >> K;
     struct timeval T1,T2;
     float timeuse;
     gettimeofday(&T1,NULL);
@@ -533,8 +538,23 @@ Eigen::Matrix<float, 3, 3> calculateTransformationMatrix(const Eigen::Vector3f& 
     a.normalize();
 
     // 固定一个向量b的xy分量
-    Eigen::Vector3f b(1, 1, 0);
-    b.z() = - (a.x() + a.y()) / a.z();
+    Eigen::Vector3f b(0, 0, 0);
+    if (a.z() != 0) {
+        b.x() = 1;
+        b.y() = 1;
+        b.z() = - (a.x() + a.y()) / a.z();
+    } else if (a.y() != 0) {
+        b.x() = 1;
+        b.z() = 1;
+        b.y() = - (a.x() + a.z()) / a.y();
+    } else if (a.x() != 0) {
+        b.y() = 1;
+        b.z() = 1;
+        b.x() = - (a.y() + a.z()) / a.x();
+    } else {
+        std::cout << "p2 - p1 is same point, ERROR" << std::endl;
+    }
+
 
     b.normalize();
 
@@ -594,8 +614,6 @@ void get_param(const vector<Eigen::Vector3f>& ref_points, vector<float>& v_norm,
         p2 = ref_points[i+1];
         Rk[i] = calculateTransformationMatrix(p0, p1, p2);
     }
-    
-      
   }
-
+  v_norm.push_back(v_norm.back());
 }

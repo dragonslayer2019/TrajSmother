@@ -306,7 +306,7 @@ public:
             for (int j = 0; j < SizeG; ++j) {
                 res2 += g[i][j].CostOfQuadraticPart(wi[j]);
                 d[j][i] = g[i][j].DistanceOfIndicatorPart(wi[j]);
-                // std::cout << " step:" << i << "g{" << j <<"}" << "input:" << wi[j]<< " ,g value: " << g[i][j].CostOfQuadraticPart(wi[j]) << std::endl;
+                std::cout << " step:" << i << "g{" << j <<"}" << "input:" << wi[j]<< " ,g value: " << g[i][j].CostOfQuadraticPart(wi[j]) << std::endl;
             }
 
         }
