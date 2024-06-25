@@ -52,7 +52,7 @@ const int HorizonNum = 49;
 const float pi = M_PI;
 int KAcc = 150;
 const float inf = 1e5;
-int SizeEllx[NumEllx] = {3,3}, SizeEllu[2] = {2};
+int SizeEllx[NumEllx] = {3,3}, SizeEllu[NumEllu] = {2};
 
 typedef Eigen::Matrix<float, SizeX, SizeX> MatrixX;
 typedef Eigen::Matrix<float, SizeU, SizeU> MatrixU;
@@ -118,7 +118,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     // 状态变量(px, py, pz, vx, vy, vz)^T
     // 控制输入(mu1, mu2, mu3)^T
     VectorX x_init;
-    x_init << 5, 11.5, 0.5, 1, 0, 0;
+    x_init << 5, 11.5, 0.5, 4, -0.5, 1.25;
 
 
 
@@ -126,34 +126,35 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         // 此处为m个切平面约束+一个椭球约束
         // 计算优化路点到切平面之间距离的结果中的常数转移到gxi函数中               
         int M = CorridorP[i].size();
+        cout<<"why:?"<<M<<std::endl;
         for (int j = 0; j < M; ++j) {
             // m行到切平面距离   
-            Hxi(j,0) = CorridorP[i][j].n_.x();
-            Hxi(j,1) = CorridorP[i][j].n_.y();
-            Hxi(j,2) =  CorridorP[i][j].n_.z();
+            Hxi(j,0) = -CorridorP[i][j].n_.x();
+            Hxi(j,1) = -CorridorP[i][j].n_.y();
+            Hxi(j,2) =  -CorridorP[i][j].n_.z();
             Hxi(j,3) = 0;
             Hxi(j,4) = 0;
             Hxi(j,5) = 0;
             // 计算点到切平面距离中的const向量
-            DistC[i][j] = -CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() - CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() - CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
+            DistC[i][j] = CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() + CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() + CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
             // std::cout << "DistC[i][j]" <<  i << "," << j << ":" <<  DistC[i][j] << std::endl;      
         }
                 
         // 1个到椭球圆心距离约束
         for (int k = 0; k < 3; k++) {
-            Hxi(M+k, 0) = elliE[i](k, 0);
-            Hxi(M+k, 1) = elliE[i](k, 1);
-            Hxi(M+k, 2) = elliE[i](k, 2);
-            Hxi(M+k, 3) = 0;
-            Hxi(M+k, 4) = 0;
-            Hxi(M+k, 5) = 0;
+            Hxi(SizeEqx+k, 0) = elliE[i](k, 0);
+            Hxi(SizeEqx+k, 1) = elliE[i](k, 1);
+            Hxi(SizeEqx+k, 2) = elliE[i](k, 2);
+            Hxi(SizeEqx+k, 3) = 0;
+            Hxi(SizeEqx+k, 4) = 0;
+            Hxi(SizeEqx+k, 5) = 0;
         }
 
         // 1个信赖域约束
-        Hxi.block(M+3, 0, 3, 6).setZero();
-        Hxi(M+3, 3) = 1;
-        Hxi(M+4, 4) = 1;
-        Hxi(M+5, 5) = 1;
+        Hxi.block(SizeEqx+3, 0, 3, 6).setZero();
+        Hxi(SizeEqx+3, 3) = 1;
+        Hxi(SizeEqx+4, 4) = 1;
+        Hxi(SizeEqx+5, 5) = 1;
 
         // 此处为一个曲率平方约束+一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
         Hui << 0, 1, 0,
@@ -218,12 +219,12 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         // 凸走廊切平面罚函数
         int M = CorridorP[i].size();
         for (int j = 0; j < M; j++) {
-            // ppp[0] = -inf;ppp[1] = 0.2;ppp[2] = 1;ppp[3] = inf;
-            // ppp[0] = -inf;ppp[1] = 0.2+DistC[i][j];ppp[2] = 1+DistC[i][j];ppp[3] = inf;
-            // aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
-            // aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 2.45);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45);
-            // aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
-            // g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
+            //ppp[0] = -inf;ppp[1] = 0.2;ppp[2] = 1;ppp[3] = inf;
+            ppp[0] = -inf;ppp[1] = 0.2-DistC[i][j];ppp[2] = 1-DistC[i][j];ppp[3] = inf;
+            aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
+            aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 2.45);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45);
+            aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
+            g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
             // if (j < 5) {
             //     ppp[0] = -inf;ppp[1] = 0.2+DistC[i][j];ppp[2] = 1+DistC[i][j];ppp[3] = inf;
             //     aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
@@ -252,10 +253,10 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 1.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.25); 
-        aaa[2] = lamb5[i]*10; bbb[2] = 0; ccc[2] = lamb5[i]*(-9.25);
+        aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.25);
         g[i][M].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
-        // 信赖域约束
+        //信赖域约束
         ppp[0] = -inf;ppp[1] = 0;ppp[2] = 0.3*v_norm[i];ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb3[i]; bbb[1] = 0; ccc[1] = 0;
@@ -263,16 +264,16 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         g[i][M+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
         // 曲率罚函数
-        // ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
-        // aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        // aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
-        // aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
-        // g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
-        ppp[0] = -inf;ppp[1] = 2.0;ppp[2] = 4.0;ppp[3] = inf;
+        ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-4);
-        aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-148);
+        aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
+        aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
         g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
+        // ppp[0] = -inf;ppp[1] = 2.0;ppp[2] = 4.0;ppp[3] = inf;
+        // aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
+        // aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-4);
+        // aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-148);
+        // g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
 
     std::cout << "in solveunit3D" << std::endl;
@@ -395,9 +396,9 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         // 代价权重赋值
         lamb1.push_back(1);
         lamb2.push_back(0.1);//纵向加速度
-        lamb3.push_back(0);//信赖域约束
-        lamb4.push_back(1.0);//曲率过大
-        lamb5.push_back(0);//凸走廊约束
+        lamb3.push_back(1);//信赖域约束
+        lamb4.push_back(1);//曲率过大
+        lamb5.push_back(1);//凸走廊约束
         // std::cout << "loop: " << i << std::endl;
     }
     std::cout << "start solveunit3D" << std::endl;

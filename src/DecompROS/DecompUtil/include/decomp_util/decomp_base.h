@@ -43,6 +43,8 @@ class DecompBase {
     ///Get ellipsoid
     Ellipsoid<Dim> get_ellipsoid() const { return ellipsoid_; }
 
+    Ellipsoid<Dim> get_limit_ellipsoid() const { return limit_ellipsoid_; }
+
     ///Get polyhedron
     Polyhedron<Dim> get_polyhedron() const { return polyhedron_; }
 
@@ -93,13 +95,6 @@ class DecompBase {
       double k = 0;
       while (!obs_remain.empty() && i <= 4) {
         const auto v = ellipsoid_.closest_hyperplane(obs_remain);
-        if (i == 4) {
-          const auto closest_pt = ellipsoid_.closest_point(obs_remain);
-          std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
-          Vecf<Dim> p = ellipsoid_.R_.transpose() * (closest_pt - ellipsoid_.d()); // to ellipsoid frame
-          k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2) + pow(p(2)/ellipsoid_.axel_(2), 2));
-          std::cout << "find polyhedron times: " << i << " dilate k: " << k << std::endl;
-        }
         Vs.add(v);
         vec_Vecf<Dim> obs_tmp;
         for (const auto &it : obs_remain) {
@@ -111,8 +106,14 @@ class DecompBase {
            std::cout << "a: " << a.transpose() << std::endl;
            std::cout << "b: " << b << std::endl;
            */
+        if (i == 4 || obs_remain.empty()) {
+          const auto closest_pt = ellipsoid_.closest_point(obs_remain);
+          std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
+          Vecf<Dim> p = ellipsoid_.R_.transpose() * (closest_pt - ellipsoid_.d()); // to ellipsoid frame
+          k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2) + pow(p(2)/ellipsoid_.axel_(2), 2));
+          std::cout << "find polyhedron times: " << i << " dilate k: " << k << std::endl;
+        }
         i++;
-        
       }
       Matf<Dim, Dim> limit_ellipsoid_E = ellipsoid_.C_;
       limit_ellipsoid_E(0, 0) *= k;
@@ -120,6 +121,8 @@ class DecompBase {
       limit_ellipsoid_E(2, 2) *= k;
       std::cout << "limit_ellipsoid_E: " << limit_ellipsoid_E << std::endl;
 
+      limit_ellipsoid_ = ellipsoid_;
+      limit_ellipsoid_.C_ = limit_ellipsoid_E;
       polyhedron_ = Vs;
       std::cout << "Vs.size(): " << Vs.vs_.size() << std::endl;
     }
@@ -129,6 +132,8 @@ class DecompBase {
 
     /// Output ellipsoid
     Ellipsoid<Dim> ellipsoid_;
+
+    Ellipsoid<Dim> limit_ellipsoid_;
     /// Output polyhedron
     Polyhedron<Dim> polyhedron_;
 

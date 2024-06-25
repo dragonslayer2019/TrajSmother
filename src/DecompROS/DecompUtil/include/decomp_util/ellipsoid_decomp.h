@@ -43,6 +43,9 @@ public:
  ///Get the ellipsoids
  vec_E<Ellipsoid<Dim>> get_ellipsoids() const { return ellipsoids_; }
 
+ ///Get the limit ellipsoids
+ vec_E<Ellipsoid<Dim>> get_limit_ellipsoids() const { return limit_ellipsoids_; }
+
  ///Get the constraints of SFC as \f$Ax\leq b \f$
  vec_E<LinearConstraint<Dim>> get_constraints() const {
    vec_E<LinearConstraint<Dim>> constraints;
@@ -91,6 +94,7 @@ public:
    lines_.resize(N);
    ellipsoids_.resize(N);
    polyhedrons_.resize(N);
+   limit_ellipsoids_.resize(N);
 
    for (unsigned int i = 0; i < N; i++) {
      lines_[i] = std::make_shared<LineSegment<Dim>>(path[i], path[i+1]);
@@ -100,6 +104,7 @@ public:
      lines_[i]->dilate_fast(offset_x);
 
      ellipsoids_[i] = lines_[i]->get_ellipsoid();
+     limit_ellipsoids_[i] = lines_[i]->get_limit_ellipsoid();
      polyhedrons_[i] = lines_[i]->get_polyhedron();
    }
 
@@ -147,6 +152,7 @@ protected:
  vec_Vecf<Dim> obs_;
 
  vec_E<Ellipsoid<Dim>> ellipsoids_;
+ vec_E<Ellipsoid<Dim>> limit_ellipsoids_;
  vec_E<Polyhedron<Dim>> polyhedrons_;
  std::vector<std::shared_ptr<LineSegment<Dim>>> lines_;
 
