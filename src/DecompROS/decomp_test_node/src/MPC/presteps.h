@@ -44,10 +44,10 @@ VectorU Wi;
 
 // MPC步数、状态变量个数、控制变量个数、5个切平面+6个bbox约束+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
 const int SizeX = 6, SizeU = 3;
-const int SizeEqx = 14, SizeEqu = 0;
+const int SizeEqx = 13, SizeEqu = 0;
 const int NumEllx = 2, NumEllu = 1;
 const int SizeG = SizeEqx + NumEllx + SizeEqu + NumEllu;
-const int SizeYx = 20, SizeYu = 2;
+const int SizeYx = 19, SizeYu = 2;
 const int HorizonNum = 49;
 const float pi = M_PI;
 int KAcc = 150;
@@ -118,7 +118,8 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     // 状态变量(px, py, pz, vx, vy, vz)^T
     // 控制输入(mu1, mu2, mu3)^T
     VectorX x_init;
-    x_init << 5, 11.5, 0.5, 4, -0.5, 1.25;
+    // x_init << 5, 11.5, 0.5, 1, 0.1, 0.1;
+    x_init << 5, 11.5, 0.5, 0.1, 0.1, 0.1;
 
 
 
@@ -224,11 +225,11 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
             g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
         }
         
-        // 凸走廊椭球罚函数
-        ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 1.0;ppp[3] = inf;
+        //凸走廊椭球罚函数
+        ppp[0] = -inf;ppp[1] = 0.9;ppp[2] = 1.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.25); 
-        aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.25);
+        aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.81); 
+        aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.81);
         g[i][SizeEqx].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
         //信赖域约束
@@ -272,18 +273,18 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     //     jvz.push_back(res.v[i](5, 0));
     //     ju.push_back(res.v[i](6, 0));
     // }
-    // // std::cout << "px:        ";
-    // // for(int i = 0; i <= HorizonNum; ++i) {
-    // //     std::cout << " " <<res.v[i](0, 0) << std::endl;
-    // // }
-    // // std::cout << "py:            ";
-    // // for(int i = 0; i <= HorizonNum; ++i) {
-    // //     std::cout << " " <<res.v[i](1, 0) << std::endl;
-    // // }
-    // // std::cout << "pz:       ";
-    // // for(int i = 0; i <= HorizonNum; ++i) {
-    // //     std::cout << " " <<res.v[i](2, 0) << std::endl;
-    // // }    
+    std::cout << "px:        ";
+    for(int i = 0; i <= HorizonNum; ++i) {
+        std::cout << " " <<res.v[i](0, 0) << std::endl;
+    }
+    std::cout << "py:            ";
+    for(int i = 0; i <= HorizonNum; ++i) {
+        std::cout << " " <<res.v[i](1, 0) << std::endl;
+    }
+    std::cout << "pz:       ";
+    for(int i = 0; i <= HorizonNum; ++i) {
+        std::cout << " " <<res.v[i](2, 0) << std::endl;
+    }    
     // j["x"] = jx;
     // j["y"] = jy;
     // j["z"] = jz;
@@ -335,14 +336,14 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         } else if (i == HorizonNum) {
             lamb1.push_back(1);
         } else {
-            lamb1.push_back(0.1);
+            lamb1.push_back(0.01);
         }
         
         lamb2.push_back(0.1);//纵向加速度
         lamb3.push_back(0.1);//信赖域约束
-        lamb4.push_back(200.0);//曲率过大
-        lamb5.push_back(0.5);//凸走廊约束
-        lamb6.push_back(1.0);//曲率平方
+        lamb4.push_back(1000.0);//曲率过大
+        lamb5.push_back(0.1);//凸走廊约束
+        lamb6.push_back(10.0);//曲率平方
     }
     solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
     gettimeofday(&T2,NULL);
@@ -571,4 +572,19 @@ void get_param(const vector<Eigen::Vector3f>& ref_points, vector<float>& v_norm,
     }
   }
   v_norm.push_back(v_norm.back());
+}
+
+vector<float> computeResCurvature(const vector<Eigen::Vector3f>& points) {
+    int n = points.size();
+    vector<float> curvature(n, 0.0);
+    for (int i = 1; i < n - 1; ++i) {
+        float dis = distance(points[i-1], points[i]);
+        Eigen::Vector3f v1(points[i](0) - points[i - 1](0), points[i](1) - points[i - 1](1), points[i](2) - points[i - 1](2));
+        Eigen::Vector3f v2(points[i + 1](0) - points[i](0), points[i + 1](1) - points[i](1), points[i + 1](2) - points[i](2));
+        float angle = acos(std::min(std::max(v1.dot(v2) / (v1.norm() * v2.norm()), -0.999f), 0.999f));
+        // std::cout << v1.dot(v2) << std::endl;
+        // std::cout << v1.dot(v2) / (v1.norm() * v2.norm()) << std::endl;
+        curvature[i] = angle / dis;
+    }
+    return curvature;
 }

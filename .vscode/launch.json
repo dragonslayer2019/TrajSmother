@@ -4,11 +4,11 @@
         {
             "name": "ROS: Launch",
             "request": "launch",
-            "target": "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/launch/test_path_decomp_3d_ros.launch",
+            "target": "/home/alan/TrajSmother/src/DecompROS/decomp_test_node/launch/test_path_decomp_3d_ros.launch",
             "type": "ros",
             // "env": {
             //     "ROS_MASTER_URI": "http://localhost:11311",
-            //     "ROS_PACKAGE_PATH": "/home/alan/catkin_ws/src/DecompROS/decomp_test_node:/home/alan/catkin_ws/src/DecompROS/decomp_ros_utils:/home/alan/catkin_ws/src/DecompROS/decomp_ros_msgs:/home/alan/catkin_ws/src/catkin_simple:/home/alan/driver_ws/src:/opt/ros/melodic/share",
+            //     "ROS_PACKAGE_PATH": "/home/alan/TrajSmother/src/DecompROS/decomp_test_node:/home/alan/TrajSmother/src/DecompROS/decomp_ros_utils:/home/alan/TrajSmother/src/DecompROS/decomp_ros_msgs:/home/alan/TrajSmother/src/catkin_simple:/home/alan/driver_ws/src:/opt/ros/melodic/share",
             //     "ROS_DISTRO": "melodic"
             // },
         },
@@ -16,7 +16,7 @@
             "name": "Attach to ROS Node",
             "type": "cppdbg",
             "request": "attach",
-            "program": "/home/alan/catkin_ws/devel_isolated/decomp_test_node/lib/decomp_test_node",
+            "program": "/home/alan/TrajSmother/devel_isolated/decomp_test_node/lib/decomp_test_node",
             "processId": "${command:pickProcess}",
             "MIMode": "gdb",
             "setupCommands": [

@@ -93,7 +93,7 @@ class DecompBase {
       vec_Vecf<Dim> obs_remain = obs_;
       int i = 0;
       double k = 0;
-      while (!obs_remain.empty() && i <= 7) {
+      while (!obs_remain.empty() && i <= 6) {
         const auto v = ellipsoid_.closest_hyperplane(obs_remain);
         Vs.add(v);
         vec_Vecf<Dim> obs_tmp;
@@ -110,8 +110,8 @@ class DecompBase {
       }
 
       if (obs_remain.empty()) {
-        k = 2;
-        std::cout << "only need: " <<  i << " hyperplanes, k: 2" << std::endl;
+        k = 1.5;
+        std::cout << "only need: " <<  i << " hyperplanes, k: " << k << std::endl;
       } else {
         const auto closest_pt = ellipsoid_.closest_point(obs_remain);
         // std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
