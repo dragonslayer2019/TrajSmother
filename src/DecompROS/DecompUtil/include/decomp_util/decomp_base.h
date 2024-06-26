@@ -108,10 +108,10 @@ class DecompBase {
            */
         if (i == 4 || obs_remain.empty()) {
           const auto closest_pt = ellipsoid_.closest_point(obs_remain);
-          std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
+          // std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
           Vecf<Dim> p = ellipsoid_.R_.transpose() * (closest_pt - ellipsoid_.d()); // to ellipsoid frame
           k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2) + pow(p(2)/ellipsoid_.axel_(2), 2));
-          std::cout << "find polyhedron times: " << i << " dilate k: " << k << std::endl;
+          // std::cout << "find polyhedron times: " << i << " dilate k: " << k << std::endl;
         }
         i++;
       }
@@ -119,12 +119,12 @@ class DecompBase {
       limit_ellipsoid_E(0, 0) *= k;
       limit_ellipsoid_E(1, 1) *= k;
       limit_ellipsoid_E(2, 2) *= k;
-      std::cout << "limit_ellipsoid_E: " << limit_ellipsoid_E << std::endl;
+      // std::cout << "limit_ellipsoid_E: " << limit_ellipsoid_E << std::endl;
 
       limit_ellipsoid_ = ellipsoid_;
       limit_ellipsoid_.C_ = limit_ellipsoid_E;
       polyhedron_ = Vs;
-      std::cout << "Vs.size(): " << Vs.vs_.size() << std::endl;
+      // std::cout << "Vs.size(): " << Vs.vs_.size() << std::endl;
     }
 
     /// Obstacles, input

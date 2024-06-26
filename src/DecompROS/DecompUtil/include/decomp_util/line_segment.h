@@ -183,7 +183,7 @@ class LineSegment : public DecompBase<Dim> {
             obs_new.push_back(it);
         }
         obs_inside = obs_new;
-        std::cout << "shrink axel b, obs inside num: " << obs_inside.size() << std::endl;
+        // std::cout << "shrink axel b, obs inside num: " << obs_inside.size() << std::endl;
       }
 
       //**** reset ellipsoid with old axes(2)
@@ -213,7 +213,7 @@ class LineSegment : public DecompBase<Dim> {
             obs_new.push_back(it);
         }
         obs_inside = obs_new;
-        std::cout << "shrink axel c, obs inside num: " << obs_inside.size() << std::endl;
+        // std::cout << "shrink axel c, obs inside num: " << obs_inside.size() << std::endl;
         E.R_ = Rf;
         E.axel_ = axes;
       }

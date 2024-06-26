@@ -306,7 +306,7 @@ public:
             for (int j = 0; j < SizeG; ++j) {
                 res2 += g[i][j].CostOfQuadraticPart(wi[j]);
                 d[j][i] = g[i][j].DistanceOfIndicatorPart(wi[j]);
-                std::cout << " step:" << i << "g{" << j <<"}" << "input:" << wi[j]<< " ,g value: " << g[i][j].CostOfQuadraticPart(wi[j]) << std::endl;
+                // std::cout << " step:" << i << "g{" << j <<"}" << "input:" << wi[j]<< " ,g value: " << g[i][j].CostOfQuadraticPart(wi[j]) << std::endl;
             }
 
         }
@@ -375,8 +375,8 @@ public:
         int k_acc = KAcc < 0.6 * K ? KAcc : 0.6* K;
         barz = LQR_Solver1(bF - (bET * (w + nu_minus)) * (rho));
         while(k <= K) {
-            if (k == K)
-                barz.print();
+            // if (k == K)
+                // barz.print();
             // Nestrov Acceleration
             if (k < k_acc) {
                 float step = 1;
@@ -449,8 +449,8 @@ public:
         // BlockVector<T, HorizonNum + 1, SizeX + SizeU> res;
         // PreScaling2(res);
         // std::cout << "finish ADMMPrework1" << std::endl;
-        BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIteration();
-        std::cout << "finish ADMMIterationQuick" << std::endl;
+        BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIterationQuick();
+        // std::cout << "finish ADMMIterationQuick" << std::endl;
         return res;
     }
     

@@ -95,10 +95,9 @@ int main(int argc, char ** argv){
   decomp_util.set_local_bbox(Vec3f(1, 2, 1));
   decomp_util.dilate_fast(path); //Set max iteration number of 10, do fix the path
   auto end_time = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+  std::chrono::duration<double> duration = end_time - start_time;
   // auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end_time - start_time).count()*1000;
-  std::cout << "Time taken by code: " << duration.count() << " microseconds" << std::endl;
-  // std::cout << "tusen Time taken by code: " << duration << std::endl;
+  std::cout << "Time taken by corridor: " << duration.count() << " seconds" << std::endl;
 
   // 计算路径曲率并平滑,基于曲率采样任意段弧长，经过标准化得到1 + HorizonNum个采样路点
   std::vector<Eigen::Vector3f> path_f;
@@ -151,7 +150,6 @@ int main(int argc, char ** argv){
     //判断路点处于哪段，并范回对应的段数id
     for (int j = 0; j < path_f.size()-1;j++){
       if(isPointOnSegment(path_f[j], path_f[j+1], ref_points[i])) {
-        std::cout << "ref point: " << i << " is on line: " << j << std::endl; 
         mpc_polyhedrons.push_back(polyhedrons[j]);
         elliE[i] = E_inverse[j];
         new_centerX[i].block(0, 0, 3, 1) = E_inverse_d[j];
@@ -191,13 +189,6 @@ int main(int argc, char ** argv){
   nav_msgs::Path smooth_path_msg = DecompROS::vec_to_path(smooth_path);
   smooth_path_msg.header.frame_id = "map";
   smoothed_path_pub.publish(smooth_path_msg);
-
-  for (int i = 0; i <= HorizonNum; i++) {
-    float dis = distance(ref_path[i].cast<float>(), smooth_path[i].cast<float>());
-    std::cout << "dis " << i << ": " << dis <<std::endl;
-  }
-
-
 
   std::vector<geometry_msgs::Point> points_list;
   std::vector<geometry_msgs::Point> points1_list;
@@ -264,26 +255,26 @@ int main(int argc, char ** argv){
       text_markers1.push_back(text_marker1);
   }
 
-  //Convert to inequality constraints Ax < b
-  auto polys = decomp_util.get_polyhedrons();
-  for(size_t i = 0; i < path.size() - 1; i++) {
-    const auto pt_inside = (path[i] + path[i+1]) / 2;
-    LinearConstraint3D cs(pt_inside, polys[i].hyperplanes());
-    printf("i: %zu\n", i);
-    std::cout << "A: " << cs.A() << std::endl;
-    std::cout << "b: " << cs.b() << std::endl;
-    std::cout << "point: " << path[i].transpose();
-    if(cs.inside(path[i]))
-      std::cout << " is inside!" << std::endl;
-    else
-      std::cout << " is outside!" << std::endl;
+  // //Convert to inequality constraints Ax < b
+  // auto polys = decomp_util.get_polyhedrons();
+  // for(size_t i = 0; i < path.size() - 1; i++) {
+  //   const auto pt_inside = (path[i] + path[i+1]) / 2;
+  //   LinearConstraint3D cs(pt_inside, polys[i].hyperplanes());
+  //   printf("i: %zu\n", i);
+  //   std::cout << "A: " << cs.A() << std::endl;
+  //   std::cout << "b: " << cs.b() << std::endl;
+  //   std::cout << "point: " << path[i].transpose();
+  //   if(cs.inside(path[i]))
+  //     std::cout << " is inside!" << std::endl;
+  //   else
+  //     std::cout << " is outside!" << std::endl;
 
-    std::cout << "point: " << path[i+1].transpose();
-    if(cs.inside(path[i+1]))
-      std::cout << " is inside!" << std::endl;
-    else
-      std::cout << " is outside!" << std::endl;
-  }
+  //   std::cout << "point: " << path[i+1].transpose();
+  //   if(cs.inside(path[i+1]))
+  //     std::cout << " is inside!" << std::endl;
+  //   else
+  //     std::cout << " is outside!" << std::endl;
+  // }
 
   ros::Rate r(30);
   while (ros::ok()) {
