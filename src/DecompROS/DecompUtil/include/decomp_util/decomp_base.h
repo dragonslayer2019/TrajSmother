@@ -93,7 +93,7 @@ class DecompBase {
       vec_Vecf<Dim> obs_remain = obs_;
       int i = 0;
       double k = 0;
-      while (!obs_remain.empty() && i <= 4) {
+      while (!obs_remain.empty() && i <= 7) {
         const auto v = ellipsoid_.closest_hyperplane(obs_remain);
         Vs.add(v);
         vec_Vecf<Dim> obs_tmp;
@@ -106,15 +106,20 @@ class DecompBase {
            std::cout << "a: " << a.transpose() << std::endl;
            std::cout << "b: " << b << std::endl;
            */
-        if (i == 4 || obs_remain.empty()) {
-          const auto closest_pt = ellipsoid_.closest_point(obs_remain);
-          // std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
-          Vecf<Dim> p = ellipsoid_.R_.transpose() * (closest_pt - ellipsoid_.d()); // to ellipsoid frame
-          k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2) + pow(p(2)/ellipsoid_.axel_(2), 2));
-          // std::cout << "find polyhedron times: " << i << " dilate k: " << k << std::endl;
-        }
         i++;
       }
+
+      if (obs_remain.empty()) {
+        k = 2;
+        std::cout << "only need: " <<  i << " hyperplanes, k: 2" << std::endl;
+      } else {
+        const auto closest_pt = ellipsoid_.closest_point(obs_remain);
+        // std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
+        Vecf<Dim> p = ellipsoid_.R_.transpose() * (closest_pt - ellipsoid_.d()); // to ellipsoid frame
+        k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2) + pow(p(2)/ellipsoid_.axel_(2), 2));
+        std::cout << "find polyhedron times: " << i << " dilate k: " << k << std::endl;
+      }
+
       Matf<Dim, Dim> limit_ellipsoid_E = ellipsoid_.C_;
       limit_ellipsoid_E(0, 0) *= k;
       limit_ellipsoid_E(1, 1) *= k;

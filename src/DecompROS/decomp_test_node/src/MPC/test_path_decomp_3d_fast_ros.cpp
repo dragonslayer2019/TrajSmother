@@ -170,7 +170,8 @@ int main(int argc, char ** argv){
 
 
   //Publish visualization msgs
-  decomp_ros_msgs::EllipsoidArray es_msg = DecompROS::ellipsoid_array_to_ros(decomp_util.get_ellipsoids());
+  // decomp_ros_msgs::EllipsoidArray es_msg = DecompROS::ellipsoid_array_to_ros(decomp_util.get_ellipsoids());
+  decomp_ros_msgs::EllipsoidArray es_msg = DecompROS::ellipsoid_array_to_ros(decomp_util.get_limit_ellipsoids());
   es_msg.header.frame_id = "map";
   es_pub.publish(es_msg);
 

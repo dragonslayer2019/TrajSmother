@@ -44,10 +44,10 @@ VectorU Wi;
 
 // MPC步数、状态变量个数、控制变量个数、5个切平面+6个bbox约束+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
 const int SizeX = 6, SizeU = 3;
-const int SizeEqx = 11, SizeEqu = 0;
+const int SizeEqx = 14, SizeEqu = 0;
 const int NumEllx = 2, NumEllu = 1;
 const int SizeG = SizeEqx + NumEllx + SizeEqu + NumEllu;
-const int SizeYx = 17, SizeYu = 2;
+const int SizeYx = 20, SizeYu = 2;
 const int HorizonNum = 49;
 const float pi = M_PI;
 int KAcc = 150;
@@ -90,7 +90,7 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
 
 void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
                  vector<Eigen::Matrix<float, 3, 3>> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
-                 vector<float> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX,
+                 vector<float> lamb5, vector<float> lamb6, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX,
                  std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res, int K = 250) {
 
     std::array<MatrixX, HorizonNum + 1> Q;
@@ -198,8 +198,8 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
               0;
         // 限制纵向加速度
         Ri << lamb2[i], 0, 0,
-              0, 1.0, 0,
-              0, 0, 1.0;
+              0, lamb6[i], 0,
+              0, 0, lamb6[i];
         Wi << 0,
               0,
               0;
@@ -229,21 +229,21 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.25); 
         aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.25);
-        g[i][M].AddQuadratic(3, aaa, bbb, ccc, ppp);
+        g[i][SizeEqx].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
         //信赖域约束
         ppp[0] = -inf;ppp[1] = 0;ppp[2] = 0.3*v_norm[i];ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb3[i]; bbb[1] = 0; ccc[1] = 0;
         aaa[2] = lamb3[i]*10; bbb[2] = 0; ccc[2] = lamb3[i]*(-9)*(0.3*v_norm[i])*(0.3*v_norm[i]);
-        g[i][M+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
+        g[i][SizeEqx+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
         // 曲率罚函数
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
         aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
-        g[i][M+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
+        g[i][SizeEqx+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
 
     MPC_ADMMSolver<float, HorizonNum, SizeX, SizeU, SizeYx, SizeYu, SizeEqx, SizeEqu, NumEllx, NumEllu, SizeG, SizeEllx, SizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
@@ -309,7 +309,7 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
     gettimeofday(&T1,NULL);
     // For test: 10, 10, 250
     // solve(0.2, 0.2, 2.0, 2.0/3, q, 0.7, 1.2, -0.5, -1.2, 10, 18, 30, 38, st, wei, weig, K);
-    vector<float> Px, Py, Pz, Theta, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5;
+    vector<float> Px, Py, Pz, Theta, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6;
     vector<vector<float>> center;
     vector<vector<Hyperplane<3>>> CorridorP;//分段切平面约束
     CorridorP.resize(HorizonNum+1);
@@ -330,13 +330,21 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         Py[i] = ref_points[i].y();
         Pz[i] = ref_points[i].z();
         // 代价权重赋值
-        lamb1.push_back(1);
+        if (i == 0) {
+            lamb1.push_back(1);
+        } else if (i == HorizonNum) {
+            lamb1.push_back(1);
+        } else {
+            lamb1.push_back(0.1);
+        }
+        
         lamb2.push_back(0.1);//纵向加速度
-        lamb3.push_back(1);//信赖域约束
-        lamb4.push_back(1);//曲率过大
-        lamb5.push_back(1);//凸走廊约束
+        lamb3.push_back(0.1);//信赖域约束
+        lamb4.push_back(200.0);//曲率过大
+        lamb5.push_back(0.5);//凸走廊约束
+        lamb6.push_back(1.0);//曲率平方
     }
-    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
+    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
     std::cout<<"time taken by mpc problem: "<<timeuse<< " seconds" << std::endl;  //输出时间（单位：ｓ）
