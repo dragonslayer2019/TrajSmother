@@ -111,6 +111,10 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     VectorX ci, Li;
     VectorU Wi;
 
+    // 将矩阵的所有元素设置为1
+    Hxi.setOnes();
+    Hui.setOnes();
+
     std::array<std::array<FunctionG<float>, SizeG>, HorizonNum + 1> g;
     std::vector<vector<float>> DistC(HorizonNum+1, std::vector<float>(HorizonNum+1));
     std::vector<float> aaa, bbb, ccc;
@@ -119,7 +123,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     // 控制输入(mu1, mu2, mu3)^T
     VectorX x_init;
     // x_init << 5, 11.5, 0.5, 1, 0.1, 0.1;
-    x_init << 5, 11.5, 0.5, 0.1, 0.1, 0.1;
+    x_init << 5, 11.5, 1.0, 0.1, 0.1, 0.1;
 
 
 

@@ -168,21 +168,21 @@ int main(int argc, char ** argv){
   solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res);
   std::cout << "end solveMpc" << std::endl;
   
-  vector<Eigen::Vector3f> res_points;
-  res_points.resize(HorizonNum + 1);
-  for (int i = 0; i < res_points.size(); i++) {
-    res_points[i].x() = res.v[i](0, 0);
-    res_points[i].y() = res.v[i](1, 0);
-    res_points[i].z() = res.v[i](2, 0);
-  }
-  vector<float> ref_cur = computeResCurvature(ref_points);
-  for (auto& cur : ref_cur) {
-    std::cout << "ref cur: " << cur << std::endl;
-  }
-  vector<float> res_cur = computeResCurvature(res_points);
-  for (auto& cur : res_cur) {
-    std::cout << "res cur: " << cur << std::endl;
-  }
+  // vector<Eigen::Vector3f> res_points;
+  // res_points.resize(HorizonNum + 1);
+  // for (int i = 0; i < res_points.size(); i++) {
+  //   res_points[i].x() = res.v[i](0, 0);
+  //   res_points[i].y() = res.v[i](1, 0);
+  //   res_points[i].z() = res.v[i](2, 0);
+  // }
+  // vector<float> ref_cur = computeResCurvature(ref_points);
+  // for (auto& cur : ref_cur) {
+  //   std::cout << "ref cur: " << cur << std::endl;
+  // }
+  // vector<float> res_cur = computeResCurvature(res_points);
+  // for (auto& cur : res_cur) {
+  //   std::cout << "res cur: " << cur << std::endl;
+  // }
 
   //Publish visualization msgs
   // decomp_ros_msgs::EllipsoidArray es_msg = DecompROS::ellipsoid_array_to_ros(decomp_util.get_ellipsoids());
