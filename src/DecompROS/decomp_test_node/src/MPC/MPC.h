@@ -147,12 +147,20 @@ public:
            
             // \Lambda_x, \Lambda_u
             LambXi = (Hx[i].block(0, 0, SizeEqx, SizeX) * iPxT[i]).rowwise().norm().asDiagonal().inverse();
-          
+            for (int i = 0; i < SizeEqx; i++) {
+                if (LambXi(i, i) > inf) {
+                    LambXi(i, i) = 1;
+                }
+            }
             LambX[i] << LambXi, Eigen::Matrix<T, SizeEqx, SizeYx-SizeEqx>::Zero(SizeEqx, SizeYx - SizeEqx),
                         Eigen::Matrix<T, SizeYx - SizeEqx, SizeEqx>::Zero(SizeYx - SizeEqx, SizeEqx), Eigen::Matrix<T, SizeYx - SizeEqx, SizeYx - SizeEqx>::Identity(SizeYx - SizeEqx, SizeYx - SizeEqx);
         
             LambUi = (Hu[i].block(0, 0, SizeEqu, SizeU) * iPuT[i]).rowwise().norm().asDiagonal().inverse();
-         
+            for (int i = 0; i < SizeEqu; i++) {
+                if (LambUi(i, i) > inf) {
+                    LambUi(i, i) = 1;
+                }
+            }
             LambU[i] << LambUi, Eigen::Matrix<T, SizeEqu, SizeYu - SizeEqu>::Zero(SizeEqu, SizeYu - SizeEqu),
                         Eigen::Matrix<T, SizeYu - SizeEqu, SizeEqu>::Zero(SizeYu - SizeEqu, SizeEqu), Eigen::Matrix<T, SizeYu - SizeEqu, SizeYu - SizeEqu>::Identity(SizeYu - SizeEqu, SizeYu - SizeEqu);
             
@@ -373,7 +381,7 @@ public:
         T min_cost = inf;
         std::vector<T> cvec;
         int k_acc = KAcc < 0.6 * K ? KAcc : 0.6* K;
-        barz = LQR_Solver1(bF - (bET * (w + nu_minus)) * (rho));
+        // barz = LQR_Solver1(bF - (bET * (w + nu_minus)) * (rho));
         while(k <= K) {
             // if (k == K)
                 // barz.print();

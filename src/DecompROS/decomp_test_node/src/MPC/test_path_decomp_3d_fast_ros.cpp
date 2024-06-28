@@ -68,7 +68,7 @@ int main(int argc, char ** argv){
     ROS_ERROR("Fail to read a path!");
 
   // check path length
-  float min_length = HorizonNum * 0.5;
+  float min_length = HorizonNum * max_length;
   float length = 0;
   for (int i = 0; i < path.size()-1; i++) {
     length += distance(path[i].cast<float>(), path[i+1].cast<float>());
@@ -150,6 +150,7 @@ int main(int argc, char ** argv){
     //判断路点处于哪段，并范回对应的段数id
     for (int j = 0; j < path_f.size()-1;j++){
       if(isPointOnSegment(path_f[j], path_f[j+1], ref_points[i])) {
+        // std::cout << "point " << i << " is on " << j << " lane" << std::endl;
         mpc_polyhedrons.push_back(polyhedrons[j]);
         elliE[i] = E_inverse[j];
         new_centerX[i].block(0, 0, 3, 1) = E_inverse_d[j];
@@ -168,20 +169,30 @@ int main(int argc, char ** argv){
   solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res);
   std::cout << "end solveMpc" << std::endl;
   
-  // vector<Eigen::Vector3f> res_points;
-  // res_points.resize(HorizonNum + 1);
+  vector<Eigen::Vector3f> res_points;
+  res_points.resize(HorizonNum + 1);
+  for (int i = 0; i < res_points.size(); i++) {
+    res_points[i].x() = res.v[i](0, 0);
+    res_points[i].y() = res.v[i](1, 0);
+    res_points[i].z() = res.v[i](2, 0);
+  }
+  vector<float> ref_cur = computeResCurvature(ref_points, ref_points);
+  for (auto& cur : ref_cur) {
+    std::cout << "ref cur: " << cur << std::endl;
+  }
+  vector<float> res_cur = computeResCurvature(res_points, ref_points);
+  for (auto& cur : res_cur) {
+    std::cout << "res cur: " << cur << std::endl;
+  }
+
   // for (int i = 0; i < res_points.size(); i++) {
-  //   res_points[i].x() = res.v[i](0, 0);
-  //   res_points[i].y() = res.v[i](1, 0);
-  //   res_points[i].z() = res.v[i](2, 0);
+  //   std::cout << "vx: " << res.v[i](3, 0) << std::endl;
   // }
-  // vector<float> ref_cur = computeResCurvature(ref_points);
-  // for (auto& cur : ref_cur) {
-  //   std::cout << "ref cur: " << cur << std::endl;
+  // for (int i = 0; i < res_points.size(); i++) {
+  //   std::cout << "vy: " << res.v[i](4, 0) << std::endl;
   // }
-  // vector<float> res_cur = computeResCurvature(res_points);
-  // for (auto& cur : res_cur) {
-  //   std::cout << "res cur: " << cur << std::endl;
+  // for (int i = 0; i < res_points.size(); i++) {
+  //   std::cout << "vz: " << res.v[i](5, 0) << std::endl;
   // }
 
   //Publish visualization msgs
