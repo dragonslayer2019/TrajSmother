@@ -638,3 +638,51 @@ vector<float> computeResCurvature(const vector<Eigen::Vector3f>& points, const v
     }
     return curvature;
 }
+
+std::vector<float> generateInitialSpeeds(const std::vector<float>& curvatures, float max_speed) {
+    std::vector<float> initial_speeds;
+    float epsilon = 0.1;
+    initial_speeds.reserve(curvatures.size());
+
+    float k = std::floor(max_speed);
+
+    float max_curvature = *std::max_element(curvatures.begin(), curvatures.end());
+    float min_curvature = *std::min_element(curvatures.begin(), curvatures.end());
+
+    for (const auto& curvature : curvatures) {
+        float speed = max_speed - k * (curvature - min_curvature) / (max_curvature - min_curvature + epsilon);
+        if (speed < 0.0) {
+            speed = 0.0;  // Ensure speed is non-negative
+        }
+        initial_speeds.push_back(speed);
+    }
+
+    return initial_speeds;
+}
+
+// Function to smooth speeds based on max acceleration and deceleration
+std::vector<float> smoothSpeeds(const std::vector<float>& initial_speeds, const std::vector<float>& delta_x, float max_acceleration, float max_deceleration) {
+    std::vector<float> smoothed_speeds = initial_speeds;
+    float max_v = 5.0f;
+
+    if (!initial_speeds.empty()) {
+        smoothed_speeds[0] = std::min(std::max(smoothed_speeds[0], 0.0f), max_v);
+    }
+
+    for (size_t i = 1; i < smoothed_speeds.size(); ++i) {
+        // float delta_speed = smoothed_speeds[i] - smoothed_speeds[i - 1];
+        // v1^2 - v0^2 = 2ax
+        float delta_a = (smoothed_speeds[i] - smoothed_speeds[i - 1]) / 2 / delta_x[i - 1];
+        
+        // Check acceleration constraint
+        if (delta_a > max_acceleration) {
+            smoothed_speeds[i] = sqrt(smoothed_speeds[i - 1] * smoothed_speeds[i - 1] + 2 * max_acceleration * delta_x[i - 1]);
+        }
+        // Check deceleration constraint
+        else if (delta_a < -max_deceleration) {
+            smoothed_speeds[i] = sqrt(smoothed_speeds[i - 1] * smoothed_speeds[i - 1] - 2 * max_deceleration * delta_x[i - 1]);
+        }
+    }
+
+    return smoothed_speeds;
+}

@@ -177,10 +177,22 @@ int main(int argc, char ** argv){
     res_points[i].z() = res.v[i](2, 0);
   }
   vector<float> ref_cur = computeResCurvature(ref_points, ref_points);
+  vector<float> res_cur = computeResCurvature(res_points, ref_points);
+
+  /*************计算参考速度***************/
+  // 获取delta_x
+  vector<float> delta_x = getDeltaX(res_points);
+
+  // 基于delta_x与曲率生成初始参考速度
+  vector<float> init_refv = generateInitialSpeeds(res_cur, 5.0f);
+
+  // 基于最大加减速度平滑参考速度
+
+
+
   // for (auto& cur : ref_cur) {
   //   std::cout << "ref cur: " << cur << std::endl;
   // }
-  // vector<float> res_cur = computeResCurvature(res_points, ref_points);
   // for (auto& cur : res_cur) {
   //   std::cout << "res cur: " << cur << std::endl;
   // }
