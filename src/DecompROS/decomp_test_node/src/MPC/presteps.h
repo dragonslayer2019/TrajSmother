@@ -44,11 +44,11 @@ VectorU Wi;
 
 // MPC步数、状态变量个数、控制变量个数、5个切平面+6个bbox约束+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
 const int SizeX = 6, SizeU = 3;
-const int SizeEqx = 13, SizeEqu = 0;
+const int SizeEqx = 11, SizeEqu = 0;
 const int NumEllx = 2, NumEllu = 1;
 const int SizeG = SizeEqx + NumEllx + SizeEqu + NumEllu;
-const int SizeYx = 19, SizeYu = 2;
-const int HorizonNum = 60;
+const int SizeYx = 17, SizeYu = 2;
+const int HorizonNum = 49;
 const float pi = M_PI;
 int KAcc = 150;
 const float inf = 1e5;

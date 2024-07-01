@@ -93,7 +93,7 @@ class DecompBase {
       vec_Vecf<Dim> obs_remain = obs_;
       int i = 0;
       double k = 0;
-      while (!obs_remain.empty() && i <= 6) {
+      while (!obs_remain.empty() && i <= 4) {
         const auto v = ellipsoid_.closest_hyperplane(obs_remain);
         Vs.add(v);
         vec_Vecf<Dim> obs_tmp;

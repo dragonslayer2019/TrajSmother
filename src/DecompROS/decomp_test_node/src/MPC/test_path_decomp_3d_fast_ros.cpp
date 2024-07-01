@@ -177,13 +177,13 @@ int main(int argc, char ** argv){
     res_points[i].z() = res.v[i](2, 0);
   }
   vector<float> ref_cur = computeResCurvature(ref_points, ref_points);
-  for (auto& cur : ref_cur) {
-    std::cout << "ref cur: " << cur << std::endl;
-  }
-  vector<float> res_cur = computeResCurvature(res_points, ref_points);
-  for (auto& cur : res_cur) {
-    std::cout << "res cur: " << cur << std::endl;
-  }
+  // for (auto& cur : ref_cur) {
+  //   std::cout << "ref cur: " << cur << std::endl;
+  // }
+  // vector<float> res_cur = computeResCurvature(res_points, ref_points);
+  // for (auto& cur : res_cur) {
+  //   std::cout << "res cur: " << cur << std::endl;
+  // }
 
   // for (int i = 0; i < res_points.size(); i++) {
   //   std::cout << "vx: " << res.v[i](3, 0) << std::endl;

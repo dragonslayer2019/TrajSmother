@@ -391,16 +391,25 @@ public:
                 float gamma = 2. / (k + 1);
                 //cout<<"test: "<<step / gamma<<' '<<step<<' '<<gamma<<endl;
                 nu_minus = nu * (1 - gamma) + lambda * gamma;
-                barz = LQR_Solver1(bF - (bET * (w + nu_minus)) * (rho));
+                // auto start_time1 = std::chrono::high_resolution_clock::now();
 
-                
+                barz = LQR_Solver1(bF - (bET * (w + nu_minus)) * (rho));
+                // auto end_time1 = std::chrono::high_resolution_clock::now();
+                // std::chrono::duration<double> duration1 = end_time1 - start_time1;
+                // std::cout << "Time taken by LQR_Solver1: " << duration1.count() << " seconds" << std::endl;
+
+                // auto start_time2 = std::chrono::high_resolution_clock::now();
                 w = G_Solver(barz, nu_minus, rho);
+                // auto end_time2 = std::chrono::high_resolution_clock::now();
+                // std::chrono::duration<double> duration2 = end_time2 - start_time2;
+                // std::cout << "Time taken by G_Solver: " << duration2.count() << " seconds" << std::endl;
                 lambda = lambda + (w - bE * barz) * (step / gamma);
                 nu = nu * (1 - gamma) + lambda * gamma;
                 k++;
-                T cost = CalculateCost(barz);
-                cvec.push_back(cost);
+                
+                // cvec.push_back(cost);
                 if(!(k % 10)) {
+                    T cost = CalculateCost(barz);
                     if(cost < min_cost) {
                         res = barz;
                         nu_best = nu;
@@ -420,9 +429,10 @@ public:
                     nu = nu + w - bE * barz;
                 }
                 k++;
-                T cost = CalculateCost(barz);
-                cvec.push_back(cost);
+                
+                // cvec.push_back(cost);
                 if(!(k % 10)) {
+                    T cost = CalculateCost(barz);
                     if(cost < min_cost) {
                         res = barz;
                         min_cost = cost;
@@ -431,18 +441,18 @@ public:
                 }
             }
         }
-        using json = nlohmann::json;
-        json j;
-        json jcost = json::array();
-        for(int i = 0; i < K; ++i) {
-            jcost.push_back(cvec[i]);
-        }
-        j["cost"] = jcost;
-        ofstream out("testacc.out");
-        if(out.is_open()) {
-            out << j.dump(4) << endl;
-            out.close();
-        }
+        // using json = nlohmann::json;
+        // json j;
+        // json jcost = json::array();
+        // for(int i = 0; i < K; ++i) {
+        //     jcost.push_back(cvec[i]);
+        // }
+        // j["cost"] = jcost;
+        // ofstream out("testacc.out");
+        // if(out.is_open()) {
+        //     out << j.dump(4) << endl;
+        //     out.close();
+        // }
 
         cout << "Final Cost: " << min_cost << endl;
         return barE * res;
@@ -450,15 +460,27 @@ public:
     
     BlockVector<T, HorizonNum + 1, SizeX + SizeU> solve() {
         // std::cout << "start PreScaling1" << std::endl;
+        auto start_time1 = std::chrono::high_resolution_clock::now();
         PreScaling1();
+        auto end_time1 = std::chrono::high_resolution_clock::now();
         // std::cout << "finish PreScaling1" << std::endl;
+        auto start_time2 = std::chrono::high_resolution_clock::now();
         ADMMPrework1();
+        auto end_time2 = std::chrono::high_resolution_clock::now();
         // std::cout << "start PreScaling2" << std::endl;
         // BlockVector<T, HorizonNum + 1, SizeX + SizeU> res;
         // PreScaling2(res);
         // std::cout << "finish ADMMPrework1" << std::endl;
+        auto start_time3 = std::chrono::high_resolution_clock::now();
         BlockVector<T, HorizonNum + 1, SizeX + SizeU> res = ADMMIterationQuick();
+        auto end_time3 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> duration1 = end_time1 - start_time1;
+        std::chrono::duration<double> duration2 = end_time2 - start_time2;
+        std::chrono::duration<double> duration3 = end_time3 - start_time3;
         // std::cout << "finish ADMMIterationQuick" << std::endl;
+        std::cout << "Time taken by PreScaling1: " << duration1.count() << " seconds" << std::endl;
+        std::cout << "Time taken by ADMMPrework1: " << duration2.count() << " seconds" << std::endl;
+        std::cout << "Time taken by ADMMIterationQuick: " << duration3.count() << " seconds" << std::endl;
         return res;
     }
     
