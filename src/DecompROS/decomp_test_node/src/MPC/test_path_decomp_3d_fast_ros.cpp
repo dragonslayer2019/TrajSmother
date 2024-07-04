@@ -10,6 +10,7 @@
 #include <chrono>
 #include <visualization_msgs/Marker.h>
 #include "presteps.h"
+#include "controller.h"
 
 int main(int argc, char ** argv){
   ros::init(argc, argv, "test");
@@ -170,11 +171,18 @@ int main(int argc, char ** argv){
   std::cout << "end solveMpc" << std::endl;
   
   vector<Eigen::Vector3f> res_points;
+  vector<float> path_points;
+  float temp_dis = 0.0f;
+  path_points.push_back(temp_dis);
   res_points.resize(HorizonNum + 1);
   for (int i = 0; i < res_points.size(); i++) {
     res_points[i].x() = res.v[i](0, 0);
     res_points[i].y() = res.v[i](1, 0);
     res_points[i].z() = res.v[i](2, 0);
+    if (i != res_points.size() - 1) {
+      temp_dis += distance(ref_points[i], ref_points[i+1]);
+      path_points.push_back(temp_dis);
+    }
   }
   vector<float> ref_cur = computeResCurvature(ref_points, ref_points);
   vector<float> res_cur = computeResCurvature(res_points, ref_points);
@@ -184,17 +192,48 @@ int main(int argc, char ** argv){
   vector<float> delta_x = getDeltaX(res_points);
 
   // 基于delta_x与曲率生成初始参考速度
-  vector<float> init_refv = generateInitialSpeeds(res_cur, 5.0f);
+  vector<float> init_refv = generateInitialSpeeds(res_cur, delta_x);
 
-  // 基于最大加减速度平滑参考速度
+  // 下包络处理一下
+  vector<float> temp_refv = smoothLowerEnvelope(init_refv, 5);
 
+  // 基于最大加减速度修正参考速度
+  std::vector<float> smooth_refv = smoothSpeeds(temp_refv, delta_x);
 
+  std::vector<float> fit_refv = smoothCurvature(smooth_refv, 8);
 
-  // for (auto& cur : ref_cur) {
-  //   std::cout << "ref cur: " << cur << std::endl;
+  // 将每个点拉到下包络曲线之下
+  for (int i = 0; i < fit_refv.size(); i++) {
+    fit_refv[i] = std::min(fit_refv[i], smooth_refv[i]);
+  }
+
+  // 再次基于最大加减速度修正参考速度
+  std::vector<float> final_refv = smoothSpeeds(fit_refv, delta_x);
+
+  /****************************************/
+  // std::cout << "init refv" << std::endl;
+  // for (auto& refv : init_refv) {
+  //   std::cout << refv << std::endl;
   // }
-  // for (auto& cur : res_cur) {
-  //   std::cout << "res cur: " << cur << std::endl;
+
+  // std::cout << "temp refv" << std::endl;
+  // for (auto& refv : temp_refv) {
+  //   std::cout << refv << std::endl;
+  // }
+
+  // std::cout << "smooth refv" << std::endl;
+  // for (auto& refv : smooth_refv) {
+  //   std::cout << refv << std::endl;
+  // }
+
+  // std::cout << "fit refv" << std::endl;
+  // for (auto& refv : fit_refv) {
+  //   std::cout << refv << std::endl;
+  // }
+
+  // std::cout << "final refv" << std::endl;
+  // for (auto& refv : final_refv) {
+  //   std::cout << refv << std::endl;
   // }
 
   // for (int i = 0; i < res_points.size(); i++) {
@@ -206,6 +245,39 @@ int main(int argc, char ** argv){
   // for (int i = 0; i < res_points.size(); i++) {
   //   std::cout << "vz: " << res.v[i](5, 0) << std::endl;
   // }
+
+  /**************轨迹优化****************/
+  // 生成初始参考速度
+  // 1.找到距离初始位置最近的路点折线段（注意超出范围的情况），然后将初始速度投影上去
+  
+  // 2.以这个v为起点，平滑的追参考速度上界，追的过程中要考虑加减速度的限制，尽可能的贴合上界
+
+
+    // PathPlanner planner(path_points, final_refv, 0.0f, 0.0f, 0.0f);
+    // planner.calculateReferenceSpeedProfile();
+
+
+    std::vector<State> trajectory = generateTrajectory(path_points, final_refv, 0, 0, 0, 0, 0.1, 50);
+    
+    for (const auto& state : trajectory) {
+        std::cout << "Position: " << state.position << ", Velocity: " << state.velocity << ", Acceleration: " << state.acceleration << std::endl;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   //Publish visualization msgs
   // decomp_ros_msgs::EllipsoidArray es_msg = DecompROS::ellipsoid_array_to_ros(decomp_util.get_ellipsoids());

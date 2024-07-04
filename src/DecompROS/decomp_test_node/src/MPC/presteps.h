@@ -13,6 +13,9 @@
 #include <decomp_ros_utils/data_ros_utils.h>
 #include <decomp_util/ellipsoid_decomp.h>
 #include <nav_msgs/Path.h>
+#include <algorithm>
+#include <numeric>
+#include <unsupported/Eigen/Splines>
 using namespace std;
 
 /*
@@ -64,6 +67,10 @@ typedef Eigen::Matrix<float, SizeYu, SizeU> MatrixHu;
 
 // 步长
 float max_length = 0.3;
+float max_acceleration = 2.0f;
+float max_deceleration = 2.0f;
+float max_speed = 5.0f;
+float ay_max = 5.0f;
 
 
 bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const Eigen::Vector3f& P) {
@@ -307,7 +314,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     //     out << j.dump(4) << endl;
     //     out.close();
     // }
-    
+
     return;
 }
 
@@ -357,10 +364,14 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         lamb5.push_back(0.1);//凸走廊约束
         lamb6.push_back(0.001);//曲率平方
     }
-    solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
+    // for (int i = 0; i < 100; i++) {
+        solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
+    // }
+
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
     std::cout<<"time taken by mpc problem: "<<timeuse<< " seconds" << std::endl;  //输出时间（单位：ｓ）
+    // std::cout<<"average time taken by mpc problem: "<<timeuse / 100.0f<< " seconds" << std::endl;  //输出时间（单位：ｓ）
     return 0;
 }
 
@@ -639,20 +650,20 @@ vector<float> computeResCurvature(const vector<Eigen::Vector3f>& points, const v
     return curvature;
 }
 
-std::vector<float> generateInitialSpeeds(const std::vector<float>& curvatures, float max_speed) {
+std::vector<float> generateInitialSpeeds(const std::vector<float>& curvatures, const std::vector<float>& delta_x) {
     std::vector<float> initial_speeds;
-    float epsilon = 0.1;
     initial_speeds.reserve(curvatures.size());
 
-    float k = std::floor(max_speed);
+    float epsilon = 0.1f;
 
-    float max_curvature = *std::max_element(curvatures.begin(), curvatures.end());
-    float min_curvature = *std::min_element(curvatures.begin(), curvatures.end());
-
-    for (const auto& curvature : curvatures) {
-        float speed = max_speed - k * (curvature - min_curvature) / (max_curvature - min_curvature + epsilon);
-        if (speed < 0.0) {
-            speed = 0.0;  // Ensure speed is non-negative
+    for (int i = 0; i < curvatures.size();i++) {
+        // ay = c||v||^2
+        float speed = std::min(std::max(epsilon, sqrtf(ay_max/curvatures[i])), max_speed);
+        if (i + 5 < curvatures.size()) {
+            float future_max_curv = *std::max_element(curvatures.begin() + i, curvatures.begin() + i + 5);
+            if (future_max_curv > 1.1f) {
+                speed /= 2;
+            }
         }
         initial_speeds.push_back(speed);
     }
@@ -660,29 +671,68 @@ std::vector<float> generateInitialSpeeds(const std::vector<float>& curvatures, f
     return initial_speeds;
 }
 
-// Function to smooth speeds based on max acceleration and deceleration
-std::vector<float> smoothSpeeds(const std::vector<float>& initial_speeds, const std::vector<float>& delta_x, float max_acceleration, float max_deceleration) {
-    std::vector<float> smoothed_speeds = initial_speeds;
-    float max_v = 5.0f;
-
-    if (!initial_speeds.empty()) {
-        smoothed_speeds[0] = std::min(std::max(smoothed_speeds[0], 0.0f), max_v);
+std::vector<float> smoothLowerEnvelope(const std::vector<float>& data, int window_size) {
+    if (window_size <= 1 || data.size() <= 1) {
+        return data; // 如果窗口大小太小或数据量太少，直接返回原始数据
     }
 
-    for (size_t i = 1; i < smoothed_speeds.size(); ++i) {
-        // float delta_speed = smoothed_speeds[i] - smoothed_speeds[i - 1];
+    std::vector<float> smoothed_data(data.size(), 0.0f);
+    int half_window = window_size / 2;
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        int start = std::max(static_cast<int>(i) - half_window, 0);
+        int end = std::min(static_cast<int>(i) + half_window, static_cast<int>(data.size() - 1));
+        float min_value = data[start];
+
+        for (int j = start + 1; j <= end; ++j) {
+            min_value = std::min(min_value, data[j]);
+        }
+
+        smoothed_data[i] = min_value;
+    }
+
+    return smoothed_data;
+}
+
+// Function to smooth speeds based on max acceleration and deceleration
+std::vector<float> smoothSpeeds(const std::vector<float>& initial_speeds, const std::vector<float>& delta_x) {
+    std::vector<float> smoothed_speeds = initial_speeds;
+
+    for (int i = 1; i < smoothed_speeds.size(); ++i) {
         // v1^2 - v0^2 = 2ax
-        float delta_a = (smoothed_speeds[i] - smoothed_speeds[i - 1]) / 2 / delta_x[i - 1];
+        float delta_a = (smoothed_speeds[i]*smoothed_speeds[i] - smoothed_speeds[i - 1]*smoothed_speeds[i - 1]) / 2 / delta_x[i - 1];
         
         // Check acceleration constraint
         if (delta_a > max_acceleration) {
-            smoothed_speeds[i] = sqrt(smoothed_speeds[i - 1] * smoothed_speeds[i - 1] + 2 * max_acceleration * delta_x[i - 1]);
+            smoothed_speeds[i] = sqrtf(smoothed_speeds[i - 1] * smoothed_speeds[i - 1] + 2 * max_acceleration * delta_x[i - 1]);
         }
         // Check deceleration constraint
         else if (delta_a < -max_deceleration) {
-            smoothed_speeds[i] = sqrt(smoothed_speeds[i - 1] * smoothed_speeds[i - 1] - 2 * max_deceleration * delta_x[i - 1]);
+            smoothed_speeds[i] = sqrtf(std::max(smoothed_speeds[i - 1] * smoothed_speeds[i - 1] - 2 * max_deceleration * delta_x[i - 1], 0.1f));
         }
+        smoothed_speeds[i] = std::min(smoothed_speeds[i], initial_speeds[i]);
+    }
+
+    for (int i = smoothed_speeds.size() - 2; i >= 0; i--) {
+        // Backward pass: Ensure deceleration constraint
+        float a = (smoothed_speeds[i+1]*smoothed_speeds[i+1] - smoothed_speeds[i]*smoothed_speeds[i]) / 2 / delta_x[i];
+        if (a > max_acceleration) {
+            smoothed_speeds[i] = std::sqrt(smoothed_speeds[i + 1] * smoothed_speeds[i + 1] - 2 * max_acceleration * delta_x[i]);
+        }
+        if (a < -max_deceleration) {
+            smoothed_speeds[i] = std::sqrt(smoothed_speeds[i + 1] * smoothed_speeds[i + 1] + 2 * max_deceleration * delta_x[i]);
+        }
+        // Ensure not exceeding initial speed
+        smoothed_speeds[i] = std::min(smoothed_speeds[i], initial_speeds[i]);
     }
 
     return smoothed_speeds;
+}
+
+std::vector<float> getDeltaX(const std::vector<Eigen::Vector3f>& res_points) {
+    std::vector<float> delta_x(res_points.size()-1);
+    for (int i = 1; i < res_points.size(); i++) {
+        delta_x[i - 1] = distance(res_points[i], res_points[i-1]);
+    }
+    return delta_x;
 }
