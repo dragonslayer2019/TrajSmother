@@ -257,14 +257,29 @@ int main(int argc, char ** argv){
     // planner.calculateReferenceSpeedProfile();
 
 
-    std::vector<State> trajectory = generateTrajectory(path_points, final_refv, 0, 0, 0, 0, 0.1, 50);
+    // std::vector<State> trajectory = generateTrajectory(path_points, final_refv, 0, 0, 0, 0, 0.1, 150);
     
-    for (const auto& state : trajectory) {
-        std::cout << "Position: " << state.position << ", Velocity: " << state.velocity << ", Acceleration: " << state.acceleration << std::endl;
-    }
+    // std::cout << "Position: " << std::endl;
+    // for (const auto& state : trajectory) {
+    //     std::cout << state.position << std::endl;
+    // }
 
+    // std::cout << "Velocity: " << std::endl;
+    // for (const auto& state : trajectory) {
+    //     std::cout << state.velocity << std::endl;
+    // }
 
+    // std::cout << "Acc: " << std::endl;
+    // for (const auto& state : trajectory) {
+    //     std::cout << state.acceleration << std::endl;
+    // }
 
+    // std::cout << "Jerk: " << std::endl;
+    // for (const auto& state : trajectory) {
+    //     std::cout << state.jerk << std::endl;
+    // }
+
+  std::vector<std::vector<State>> trajs = sampleTrajs(path_points, final_refv, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 5.0f);
 
 
 

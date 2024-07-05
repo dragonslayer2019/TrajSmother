@@ -133,82 +133,164 @@ struct State {
     float position;
     float velocity;
     float acceleration;
+    float jerk;
 };
+
 
 State updateState(const State& current_state, float jerk, float dt) {
     State next_state;
+    next_state.jerk = jerk;
     next_state.acceleration = current_state.acceleration + jerk * dt;
     next_state.velocity = current_state.velocity + current_state.acceleration * dt + 0.5f * jerk * dt * dt;
     next_state.position = current_state.position + current_state.velocity * dt + 0.5f * current_state.acceleration * dt * dt + (1.0f / 6.0f) * jerk * dt * dt * dt;
     return next_state;
 }
 
-std::vector<State> generateTrajectory(
-    const std::vector<float>& path,
-    const std::vector<float>& speed_limits,
-    float p0, float v0, float a0, float j0,
-    float time_interval, int max_intervals) {
-    
-    std::vector<State> trajectory;
-    State current_state = {p0, v0, a0};
-    
-    for (int i = 0; i < max_intervals; ++i) {
-        // 插值当前位置的速度上限
-        float speed_limit = 0;
-        if (current_state.position <= path.front()) {
-            speed_limit = speed_limits.front();
-        } else if (current_state.position >= path.back()) {
-            speed_limit = speed_limits.back();
-        } else {
-            for (size_t j = 1; j < path.size(); ++j) {
-                if (current_state.position < path[j]) {
-                    float t = (current_state.position - path[j - 1]) / (path[j] - path[j - 1]);
-                    speed_limit = speed_limits[j - 1] + t * (speed_limits[j] - speed_limits[j - 1]);
-                    break;
-                }
+float interpolateSpeedLimit(float position, const std::vector<float>& path, const std::vector<float>& speed_limits) {
+    if (position <= path.front()) {
+        return speed_limits.front();
+    } else if (position >= path.back()) {
+        return speed_limits.back();
+    } else {
+        for (size_t j = 1; j < path.size(); ++j) {
+            if (position < path[j]) {
+                float t = (position - path[j - 1]) / (path[j] - path[j - 1]);
+                return speed_limits[j - 1] + t * (speed_limits[j] - speed_limits[j - 1]);
             }
         }
-        
-        // 根据速度差调整加加速度
-        float velocity_error = speed_limit - current_state.velocity;
-        float jerk = std::max(-5.0f, std::min(5.0f, velocity_error / time_interval));
-
-        // 更新状态
-        State next_state = updateState(current_state, jerk, time_interval);
-        
-        // 速度和加速度的限制
-        next_state.acceleration = std::max(-2.5f, std::min(2.0f, next_state.acceleration));
-        next_state.velocity = std::max(0.0f, std::min(speed_limit, next_state.velocity));
-        
-        // 将当前状态加入轨迹
-        trajectory.push_back(next_state);
-        
-        // 更新当前状态
-        current_state = next_state;
-        
-        // 路径超出最大长度则退出
-        if (current_state.position >= path.back()) break;
     }
-    
-    return trajectory;
+    return speed_limits.back(); // default case, shouldn't be reached
 }
 
-// int main() {
-//     std::vector<float> path = {0, 10, 20, 30, 40, 50};
-//     std::vector<float> speed_limits = {5, 10, 15, 20, 25, 30};
+// std::vector<State> generateTrajectory(
+//     const std::vector<float>& path,
+//     const std::vector<float>& speed_limits,
+//     float p0, float v0, float a0, float j0,
+//     float time_interval, int max_intervals) {
     
-//     float p0 = 0;
-//     float v0 = 0;
-//     float a0 = 0;
-//     float j0 = 1;
-//     float time_interval = 0.1f;
-//     int max_intervals = 1000;
+//     std::vector<State> trajectory;
+//     State current_state = {p0, v0, a0, 0};
+//     float previous_jerk = 0;
+//     float max_jerk_change = 1.0f; // 限制jerk的变化速率
     
-//     std::vector<State> trajectory = generateTrajectory(path, speed_limits, p0, v0, a0, j0, time_interval, max_intervals);
-    
-//     for (const auto& state : trajectory) {
-//         std::cout << "Position: " << state.position << ", Velocity: " << state.velocity << ", Acceleration: " << state.acceleration << std::endl;
+//     for (int i = 0; i < max_intervals; ++i) {
+//         // 插值当前位置的速度上限
+//         float speed_limit = interpolateSpeedLimit(current_state.position, path, speed_limits);
+
+//         // 根据速度差调整加加速度，确保速度不会超过速度上限
+//         float velocity_error = speed_limit - current_state.velocity;
+//         float desired_jerk = std::max(-5.0f, std::min(5.0f, (velocity_error / time_interval - current_state.acceleration) / time_interval));
+        
+//         // 限制jerk的变化速率
+//         float jerk = std::max(previous_jerk - max_jerk_change, std::min(previous_jerk + max_jerk_change, desired_jerk));
+        
+//         // 暂时计算下一个状态
+//         State next_state = updateState(current_state, jerk, time_interval);
+        
+//         // 如果计算出的速度超过了速度上限，则调整jerk
+//         if (next_state.velocity > speed_limit) {
+//             float required_jerk = (2 * (speed_limit - current_state.velocity) - current_state.acceleration * time_interval) / (time_interval * time_interval);
+//             required_jerk = std::max(-5.0f, std::min(5.0f, required_jerk));
+//             jerk = std::max(previous_jerk - max_jerk_change, std::min(previous_jerk + max_jerk_change, required_jerk));
+//             next_state = updateState(current_state, jerk, time_interval);
+//         }
+        
+//         // 确保速度和加速度在限制范围内
+//         next_state.acceleration = std::max(-2.5f, std::min(2.0f, next_state.acceleration));
+//         next_state.velocity = std::max(0.0f, std::min(speed_limit, next_state.velocity));
+        
+//         // 将当前状态加入轨迹
+//         trajectory.push_back(next_state);
+        
+//         // 更新当前状态和jerk
+//         current_state = next_state;
+//         previous_jerk = jerk;
+        
+//         // 路径超出最大长度则退出
+//         if (current_state.position >= path.back()) break;
 //     }
     
-//     return 0;
+//     return trajectory;
+// }
+
+// struct State {
+//     float t;
+//     float position;
+//     float velocity;
+//     float acceleration;
+//     float jerk;
+// };
+
+// // 采样n条轨迹
+// std::vector<std::vector<state>> sampleTrajs(const std::vector<float>& path, const std::vector<float>& speed_limits,float p0, float v0, float a0, float j0, float time_interval, int max_intervals) {
+//     std::vector<std::vector<state>> trajectorys;
+//     std::vector<State> trajectory;
+//     State current_state = {p0, v0, a0, 0};
+//     for (float t = 0.0f; t < 5.0f; t+=time_interval) {
+        
+//         for (float j = 0.0f; j <= 5.0f; j+=1.0f) {
+//             // 获取下一时刻状态
+//             State next_state = updateState(current_state, j, time_interval);
+//             // 检查是否超出参考速度上界或加速度上界
+
+//             // 不超出则存入轨迹
+
+//             // 如果超出则不再继续采样
+//         }
+//         for (float j = -1.0f; j >= -5.0f; j-=1.0f) {
+//             // 获取下一时刻状态
+
+//             // 检查是否超出参考速度或加速度下界
+
+//             // 不超出则存入轨迹
+
+//             // 如果超出则不再继续采样
+//         }
+//     }
+// }
+
+
+void getTraj(const std::vector<float>& path, const std::vector<float>& speed_limits, 
+             State& init_state, State& cur_state, std::vector<State>& traj, float dt, int max_step, std::vector<std::vector<State>>& trajs, int step, int count) {
+    step++;
+    if (step == max_step) {
+        step = 0;
+        trajs.push_back(traj);
+        traj.clear();
+        cur_state = init_state;
+        count++;
+        std::cout << "get traj " << count << std::endl;
+    }
+    traj.push_back(cur_state);
+
+    for (float j = -5.0f; j <= 5.0f; j+=1.0f) {
+        // 计算下一时刻状态
+        State next_state = updateState(cur_state, j, dt);
+        float speed_limit = interpolateSpeedLimit(next_state.position, path, speed_limits);
+        if (next_state.velocity > 0.0f && next_state.velocity < speed_limit && next_state.acceleration > -2.5f && next_state.acceleration < 2.0f) {
+            getTraj(path , speed_limits, init_state, next_state, traj, dt, max_step, trajs, step, count);
+        }
+    }
+}
+
+std::vector<std::vector<State>> sampleTrajs(const std::vector<float>& path, const std::vector<float>& speed_limits,
+                                            float p0, float v0, float a0, float j0, float time_interval, float total_time) {
+    int count = 0;
+    int step = 0;
+    int max_step = int(total_time / time_interval);
+    std::vector<std::vector<State>> trajectories;
+    std::vector<State> trajectory;
+    State current_state = {p0, v0, a0, 0};
+    getTraj(path, speed_limits, current_state, current_state, trajectory, time_interval, max_step, trajectories, step, count);
+    return trajectories;
+}
+
+// 删除掉加速度与速度不满足约束的轨迹
+// std::vector<std::vector<state>> selectTrajs(std::vector<std::vector<state>> sample_trajs) {
+//     for (auto& traj : sample_trajs) {
+//         // 计算每条轨迹距离参考速度上界的最小误差
+
+//     }
+//     // 选出误差最小的轨迹
+
 // }
