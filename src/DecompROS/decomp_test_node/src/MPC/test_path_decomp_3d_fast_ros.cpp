@@ -11,6 +11,7 @@
 #include <visualization_msgs/Marker.h>
 #include "presteps.h"
 #include "controller.h"
+#include "BVP.h"
 
 int main(int argc, char ** argv){
   ros::init(argc, argv, "test");
@@ -231,10 +232,19 @@ int main(int argc, char ** argv){
   //   std::cout << refv << std::endl;
   // }
 
-  // std::cout << "final refv" << std::endl;
-  // for (auto& refv : final_refv) {
-  //   std::cout << refv << std::endl;
-  // }
+  vector<float> x_axil = {.0f};
+  std::cout << "x axil" << std::endl;
+  float t_x = 0.0f;
+  std::cout << t_x << std::endl;
+  for (auto& x : delta_x) {
+    t_x += x;
+    std::cout << t_x << std::endl;
+  }
+
+  std::cout << "final refv" << std::endl;
+  for (auto& refv : final_refv) {
+    std::cout << refv << std::endl;
+  }
 
   // for (int i = 0; i < res_points.size(); i++) {
   //   std::cout << "vx: " << res.v[i](3, 0) << std::endl;
@@ -252,35 +262,99 @@ int main(int argc, char ** argv){
   
   // 2.以这个v为起点，平滑的追参考速度上界，追的过程中要考虑加减速度的限制，尽可能的贴合上界
 
+  // auto start_time2 = std::chrono::high_resolution_clock::now();
+  // float time_interval = 2.0f;
+  // std::vector<std::vector<State>> trajs = sampleTrajs(path_points, final_refv, 0.0f, 0.0f, 0.0f, 0.0f, time_interval, 10.0f);
+  // auto best_trajectory = selectTrajs(trajs, path_points, final_refv, time_interval);
+  // auto end_time2 = std::chrono::high_resolution_clock::now();
+  // std::chrono::duration<double> duration2 = end_time2 - start_time2;
+  // std::cout << "Time taken by speed generator solver: " << duration2.count() << " seconds" << std::endl;
+  
 
-    // PathPlanner planner(path_points, final_refv, 0.0f, 0.0f, 0.0f);
-    // planner.calculateReferenceSpeedProfile();
 
+  // 
 
-    // std::vector<State> trajectory = generateTrajectory(path_points, final_refv, 0, 0, 0, 0, 0.1, 150);
-    
-    // std::cout << "Position: " << std::endl;
-    // for (const auto& state : trajectory) {
-    //     std::cout << state.position << std::endl;
-    // }
+  float max_acc = 3.0; // 最大加速度
+  float min_acc = -3.0; // 最小加速度
+  
+  std::vector<float> smooth_speeds = generateSpeedProfile(path_points, final_refv, max_acc, min_acc, 0.0f, 0.0f);
 
-    // std::cout << "Velocity: " << std::endl;
-    // for (const auto& state : trajectory) {
-    //     std::cout << state.velocity << std::endl;
-    // }
+  // 打印结果
+  std::cout << "x: " << std::endl;
+  for (size_t i = 0; i < path_points.size(); ++i) {
+      std::cout << path_points[i] << std::endl;
+  }
+  std::cout << "speed: " << std::endl;
+  for (size_t i = 0; i < smooth_speeds.size(); ++i) {
+      std::cout << smooth_speeds[i] << std::endl;
+  }
 
-    // std::cout << "Acc: " << std::endl;
-    // for (const auto& state : trajectory) {
-    //     std::cout << state.acceleration << std::endl;
-    // }
+  // // 二次函数补密
+  // std::vector<State> smooth_best_traj;
+  // State current_state;
+  // float ddt = time_interval / 10.0f;
+  // for (int i = 0; i < best_trajectory.size() - 1; i++) {
+  //   current_state = best_trajectory[i];
+  //   float jerk = best_trajectory[i+1].jerk;
+  //   smooth_best_traj.push_back(current_state);
+  //   for (float j = 0.0f; j < time_interval - ddt; j += ddt) {
+  //     State next_state = updateState(current_state, jerk, ddt);
+  //     smooth_best_traj.push_back(next_state);
+  //     current_state = next_state;
+  //   }
+  // }
+  // smooth_best_traj.push_back(best_trajectory.back());
 
-    // std::cout << "Jerk: " << std::endl;
-    // for (const auto& state : trajectory) {
-    //     std::cout << state.jerk << std::endl;
-    // }
+  // std::cout << "best traj pos: " << std::endl;
+  // for (const auto& state : smooth_best_traj) {
+  //     std::cout << state.position << std::endl;
+  // }
+  // std::cout << "best traj vel: " << std::endl;
+  // for (const auto& state : smooth_best_traj) {
+  //     std::cout << state.velocity << std::endl;
+  // }
+  // std::cout << "best traj acc: " << std::endl;
+  // for (const auto& state : smooth_best_traj) {
+  //     std::cout << state.acceleration << std::endl;
+  // }
+  // std::cout << "best traj jerk: " << std::endl;
+  // for (const auto& state : smooth_best_traj) {
+  //     std::cout << state.jerk << std::endl;
+  // }
+  // std::cout << "best traj t: " << std::endl;
+  // for (const auto& state : smooth_best_traj) {
+  //     std::cout << state.t << std::endl;
+  // }
 
-  std::vector<std::vector<State>> trajs = sampleTrajs(path_points, final_refv, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 5.0f);
+  // std::ofstream outfile("/home/alan/桌面/plot/pos.txt");
+  // for (const auto &state : smooth_best_traj) {
+  //     outfile << state.position << "\n";
+  // }
+  // outfile.close();
 
+  // std::ofstream outfile1("/home/alan/桌面/plot/speed.txt");
+  // for (const auto &state : smooth_best_traj) {
+  //     outfile1 << state.velocity << "\n";
+  // }
+  // outfile1.close();
+
+  // std::ofstream outfile2("/home/alan/桌面/plot/acc.txt");
+  // for (const auto &state : smooth_best_traj) {
+  //     outfile2 << state.acceleration << "\n";
+  // }
+  // outfile2.close();
+
+  // std::ofstream outfile3("/home/alan/桌面/plot/jerk.txt");
+  // for (const auto &state : smooth_best_traj) {
+  //     outfile3 << state.jerk << "\n";
+  // }
+  // outfile3.close();
+
+  // std::ofstream outfile4("/home/alan/桌面/plot/final_t.txt");
+  // for (const auto &state : smooth_best_traj) {
+  //     outfile4 << state.t << "\n";
+  // }
+  // outfile4.close();
 
 
 
