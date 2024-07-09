@@ -4,9 +4,10 @@
 #include "spline.h" // Spline库
 
 // 生成平滑速度曲线的函数
-std::vector<float> generateSpeedProfile(std::vector<float>& x_data, std::vector<float>& y_data, float max_acc, float min_acc, float init_x, float init_y) {
+std::vector<float> generateSpeedProfile(std::vector<float>& x_data, std::vector<float>& y_data, float max_acc,
+                                        float min_acc, float init_x, float init_y) {
     for (auto& y : y_data) {
-        y *= 0.6f;
+        y *= 0.64f;
     }
 
     int start_id = 0;
@@ -47,24 +48,50 @@ std::vector<float> generateSpeedProfile(std::vector<float>& x_data, std::vector<
     // 生成速度曲线
     std::vector<float> smooth_speeds;
     float dx = 0.1; // 生成点的步长
-    float temp_x = new_x.front();
-    std::cout << "temp_x: " << std::endl;
-    std::cout << temp_x << std::endl;
+    std::ofstream outfile("/home/alan/桌面/plot/final_t.txt");
+    // std::cout << "temp_x: " << std::endl;    
     for (float x = new_x.front(); x <= new_x.back(); x += dx) {
-        smooth_speeds.push_back(s(x));
-        temp_x += dx;
-        std::cout << temp_x << std::endl;
+        // std::cout << x << std::endl;
+        outfile << x << "\n";
+        smooth_speeds.push_back(s(x));     
     }
+    outfile.close();
 
-    // 应用加速度限制
+    // 修正加速度限制
     for (size_t i = 1; i < smooth_speeds.size(); ++i) {
-        float dv = smooth_speeds[i] - smooth_speeds[i - 1];
-        if (dv / dx > max_acc) {
-            smooth_speeds[i] = smooth_speeds[i - 1] + max_acc * dx;
-        } else if (dv / dx < min_acc) {
-            smooth_speeds[i] = smooth_speeds[i - 1] + min_acc * dx;
+        float acc = (smooth_speeds[i]*smooth_speeds[i] - smooth_speeds[i - 1]*smooth_speeds[i - 1]) / 2.0f / dx;
+        if (acc > max_acc) {
+            smooth_speeds[i] = sqrtf(std::max(smooth_speeds[i - 1] * smooth_speeds[i - 1] + 2 * max_acc * dx, 0.1f));
+        } else if (acc < min_acc) {
+            smooth_speeds[i] = sqrtf(std::max(smooth_speeds[i - 1] * smooth_speeds[i - 1] + 2 * min_acc * dx, 0.1f));
         }
     }
+
+    std::vector<float> time = {0.0f};
+    std::ofstream outfile1("/home/alan/桌面/plot/tx.txt");
+    outfile1 << 0.0f << "\n";
+    for (size_t i = 1; i < smooth_speeds.size(); ++i) {
+        float average_speed = (smooth_speeds[i] + smooth_speeds[i - 1]) / 2.0f;
+        float real_t = dx / average_speed;
+        outfile1 << time.back() + real_t << "\n";
+        time.push_back(time.back() + real_t);
+    }
+    outfile1.close();
+    
+    // 计算加速度
+    std::vector<float> accelerations;
+    accelerations.push_back(0.0f); // 初始点加速度为0
+    for (size_t i = 1; i < smooth_speeds.size(); ++i) {
+        float acc = (smooth_speeds[i] - smooth_speeds[i - 1]) / (time[i] - time[i - 1]);
+        accelerations.push_back(acc);
+    }
+
+    // 将加速度保存到文件
+    std::ofstream outfile2("/home/alan/桌面/plot/acceleration.txt");
+    for (const auto& acc : accelerations) {
+        outfile2 << acc << "\n";
+    }
+    outfile2.close();
 
     return smooth_speeds;
 }

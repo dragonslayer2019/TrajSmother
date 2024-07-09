@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <iostream>
 #include <vector>
+#include <limits>
 #include <cmath>
 #include <bits/stdc++.h>
 #include <sys/time.h>
@@ -66,12 +67,52 @@ typedef Eigen::Matrix<float, SizeYx, SizeX> MatrixHx;
 typedef Eigen::Matrix<float, SizeYu, SizeU> MatrixHu;
 
 // 步长
-float max_length = 0.3;
+float max_length = 0.5;// 3d 0.3 2d 0.5
 float max_acceleration = 2.0f;
 float max_deceleration = 2.0f;
 float max_speed = 5.0f;
 float ay_max = 5.0f;
 
+
+// 计算点到直线段的最短距离
+float pointToSegmentDistance(const Eigen::Vector3f& point, const Eigen::Vector3f& segStart, const Eigen::Vector3f& segEnd) {
+    Eigen::Vector3f v = segEnd - segStart;
+    Eigen::Vector3f w = point - segStart;
+
+    float c1 = w.dot(v);
+    if (c1 <= 0) {
+        return (point - segStart).norm();
+    }
+
+    float c2 = v.dot(v);
+    if (c2 <= c1) {
+        return (point - segEnd).norm();
+    }
+
+    float b = c1 / c2;
+    Eigen::Vector3f pb = segStart + b * v;
+    return (point - pb).norm();
+}
+
+// 找出距离点最近的折线段
+int findClosestSegment(const Eigen::Vector3f& point, const std::vector<Eigen::Vector3f>& res_points) {
+    if (res_points.size() < 2) {
+        throw std::invalid_argument("The number of points must be at least 2 to form a segment.");
+    }
+
+    float minDistance = std::numeric_limits<float>::max();
+    int closestSegmentIndex = -1;
+
+    for (size_t i = 0; i < res_points.size() - 1; ++i) {
+        float distance = pointToSegmentDistance(point, res_points[i], res_points[i + 1]);
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestSegmentIndex = i;
+        }
+    }
+
+    return closestSegmentIndex;
+}
 
 bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const Eigen::Vector3f& P) {
     Eigen::Vector3f AB = B - A;
@@ -268,57 +309,84 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     res = mpc.solve();
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end_time - start_time;
-    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     std::cout << "Time taken by ADMM solver: " << duration.count() << " seconds" << std::endl;
-
-    // using json = nlohmann::json;
-    // json j;
-    // json jx = json::array();
-    // json jy = json::array();
-    // json jz = json::array();
-    // json jvx = json::array();
-    // json jvy = json::array();
-    // json jvz = json::array();
-    // json ju = json::array();
-    // for(int i = 0; i <= HorizonNum; ++i) {
-    //     jx.push_back(res.v[i](0, 0));
-    //     jy.push_back(res.v[i](1, 0));
-    //     jz.push_back(res.v[i](2, 0));
-    //     jvx.push_back(res.v[i](3, 0));
-    //     jvy.push_back(res.v[i](4, 0));
-    //     jvz.push_back(res.v[i](5, 0));
-    //     ju.push_back(res.v[i](6, 0));
-    // }
-    // std::cout << "px:        ";
-    // for(int i = 0; i <= HorizonNum; ++i) {
-    //     std::cout << " " <<res.v[i](0, 0) << std::endl;
-    // }
-    // std::cout << "py:            ";
-    // for(int i = 0; i <= HorizonNum; ++i) {
-    //     std::cout << " " <<res.v[i](1, 0) << std::endl;
-    // }
-    // std::cout << "pz:       ";
-    // for(int i = 0; i <= HorizonNum; ++i) {
-    //     std::cout << " " <<res.v[i](2, 0) << std::endl;
-    // }    
-    // j["x"] = jx;
-    // j["y"] = jy;
-    // j["z"] = jz;
-    // j["vx"] = jvx;
-    // j["vy"] = jvy;
-    // j["vz"] = jvz;
-    // j["u"] = ju;
-    // j["Px"] = Px;
-    // ofstream out("test1.out");
-    // if(out.is_open()) {
-    //     out << j.dump(4) << endl;
-    //     out.close();
-    // }
 
     return;
 }
 
 int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
+    float q=0.35, st=0, wei=10, weig=50; int K=250;
+    std::cout << "please enter the inner iteration num" << std::endl;
+    cin >> K;
+    struct timeval T1,T2;
+    float timeuse;
+    gettimeofday(&T1,NULL);
+    // For test: 10, 10, 250
+    // solve(0.2, 0.2, 2.0, 2.0/3, q, 0.7, 1.2, -0.5, -1.2, 10, 18, 30, 38, st, wei, weig, K);
+    vector<float> Px, Py, Pz, Theta, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6;
+    vector<vector<float>> center;
+    vector<vector<Hyperplane<3>>> CorridorP;//分段切平面约束
+    CorridorP.resize(HorizonNum+1);
+    Px.resize(HorizonNum+1);
+    Py.resize(HorizonNum+1);
+    Pz.resize(HorizonNum+1);
+
+    for(int i = 0;i <= HorizonNum; ++i) {
+        // std::cout << "loop: " << i << std::endl;
+        // 切平面约束与椭球约束
+        int plane_size = mpc_polyhedrons[i].hyperplanes().size();
+        CorridorP[i].resize(plane_size);
+        for (int j = 0; j < plane_size; j++) {
+            CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
+        }
+        // 用ref_points为Px、Py、Pz赋值
+        Px[i] = ref_points[i].x();
+        Py[i] = ref_points[i].y();
+        Pz[i] = ref_points[i].z();
+
+        if (i == 0) {
+            lamb1.push_back(1);
+        } else if (i >= HorizonNum-2) {
+            lamb1.push_back(1);
+        } else {
+            lamb1.push_back(0.01);
+        }
+        
+        lamb2.push_back(0.1);//纵向加速度
+        lamb3.push_back(0.1);//信赖域约束
+        lamb4.push_back(100.0);//曲率过大
+        lamb5.push_back(0.00000001);//凸走廊约束
+        lamb6.push_back(5.0);//曲率平方
+
+
+        // if (i == 0) {
+        //     lamb1.push_back(1);
+        // } else if (i == HorizonNum) {
+        //     lamb1.push_back(1.0);
+        // } else if (i > HorizonNum-6) {
+        //     lamb1.push_back(0.04);
+        // } else {
+        //     lamb1.push_back(0.04);
+        // }
+        
+        // lamb2.push_back(0.0001);//纵向加速度
+        // lamb3.push_back(0.001);//信赖域约束
+        // lamb4.push_back(1000);//曲率过大
+        // lamb5.push_back(0.1);//凸走廊约束
+        // lamb6.push_back(0.001);//曲率平方
+    }
+    // for (int i = 0; i < 100; i++) {
+        solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
+    // }
+
+    gettimeofday(&T2,NULL);
+    timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
+    std::cout<<"time taken by mpc problem: "<<timeuse<< " seconds" << std::endl;  //输出时间（单位：ｓ）
+    // std::cout<<"average time taken by mpc problem: "<<timeuse / 100.0f<< " seconds" << std::endl;  //输出时间（单位：ｓ）
+    return 0;
+}
+
+int solveMpcTraj(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
     std::cout << "please enter the inner iteration num" << std::endl;
     cin >> K;
