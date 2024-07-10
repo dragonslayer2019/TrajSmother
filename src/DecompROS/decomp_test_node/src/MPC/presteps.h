@@ -330,7 +330,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, TrjSizeX + SizeU>& res) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
     std::cout << "please enter the inner iteration num" << std::endl;
     cin >> K;
@@ -403,10 +403,11 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
     return 0;
 }
 
-void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
-                 vector<Eigen::Matrix<float, 3, 3>> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
-                 vector<float> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1> new_centerX,
-                 std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res, int K = 250) {
+void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> Vx, vector<float> Vy, vector<float> Vz, vector<float> v_norm,
+                    vector<Eigen::Matrix<float, 3, 3>> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4, vector<float> lamb5, 
+                    vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1> new_centerX,
+                    std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE,
+                    BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res, int K = 250) {
 
     std::array<TrjMatrixX, HorizonNum + 1> Q;
     std::array<TrjMatrixU, HorizonNum + 1> R;
@@ -438,10 +439,7 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
     // 控制输入(mu1, mu2, mu3)^T
     TrjVectorX x_init;
     // x_init << 5, 11.5, 0.5, 1, 0.1, 0.1;
-    x_init <<  Px[0], Py[0], Pz[0], 0.0, 0.0, 0.0;
-    // x_init <<  Px[0], Py[0], Pz[0], 1, 0.0, 0.0;
-
-
+    x_init <<  Px[0], Py[0], Pz[0], Vx[0], Vy[0], Vz[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f;
 
     for(int i = 0; i <= HorizonNum; ++i) {
         // 此处为m个切平面约束+一个椭球约束
@@ -465,63 +463,90 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
             Hxi(TrjSizeEqx+k, 0) = elliE[i](k, 0);
             Hxi(TrjSizeEqx+k, 1) = elliE[i](k, 1);
             Hxi(TrjSizeEqx+k, 2) = elliE[i](k, 2);
-            Hxi(TrjSizeEqx+k, 3) = 0;
-            Hxi(TrjSizeEqx+k, 4) = 0;
-            Hxi(TrjSizeEqx+k, 5) = 0;
+            // Hxi(TrjSizeEqx+k, 3) = 0;
+            // Hxi(TrjSizeEqx+k, 4) = 0;
+            // Hxi(TrjSizeEqx+k, 5) = 0;
+            Hxi.block(TrjSizeEqx+k, 3, 1, 9).setZero();
         }
 
-        // 1个信赖域约束
-        Hxi.block(TrjSizeEqx+3, 0, 3, 6).setZero();
-        Hxi(TrjSizeEqx+3, 3) = 1;
-        Hxi(TrjSizeEqx+4, 4) = 1;
-        Hxi(TrjSizeEqx+5, 5) = 1;
+        // 1个加速度表示的曲率约束
+        Hxi.block(TrjSizeEqx+3, 0, 2, 12).setZero();
+        // ？？？ 这里a1,a2,a3被Rk耦合在一起来表示mu2 mu3
+        Hxi(TrjSizeEqx+3, 3) = Rk[i](1,0);Hxi(TrjSizeEqx+3, 4) = Rk[i](1,1);Hxi(TrjSizeEqx+3, 5) = Rk[i](1,2);
+        Hxi(TrjSizeEqx+4, 3) = Rk[i](2,0);Hxi(TrjSizeEqx+4, 4) = Rk[i](2,1);Hxi(TrjSizeEqx+4, 5) = Rk[i](2,2);
 
-        // 此处为一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
-        Hui << 0, 1, 0,
-               0, 0, 1;
+        Hui.setZero();
+
         Hx[i] = Hxi;
         Hu[i] = Hui;
     }
 
+    float dt2 = dt.front() * dt.front();
+    float dt3 = dt.front() * dt.front() * dt.front();
+    float dt4 = dt.front() * dt.front() * dt.front() * dt.front();
     for(int i = 0; i < HorizonNum; ++i) {
-        // 6*6
-        Ai << 1, 0, 0, dt[i], 0, 0,
-              0, 1, 0, 0,  dt[i], 0,
-              0, 0, 1 , 0, 0, dt[i],
-              0, 0, 0 , 1, 0, 0,
-              0, 0, 0 , 0, 1, 0,
-              0, 0, 0 , 0, 0, 1;
-        // 6*3
-        Bi << 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](0,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,2),
-              0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,2),
-              0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,2),
-              v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,2),
-              v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,2),
-              v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,2);
-        // 6*1
-        ci << 0, 0, 0, 0, 0, 0;
+        // 12 * 12
+        Ai << 1, 0, 0, dt[i], 0, 0, 0.5*dt2, 0, 0, 1/6*dt3, 0, 0,
+              0, 1, 0, 0, dt[i], 0, 0, 0.5*dt2, 0, 0, 1/6*dt3, 0,
+              0, 0, 1, 0, 0, dt[i], 0, 0, 0.5*dt2, 0, 0, 1/6*dt3,
+              0, 0, 0, 1, 0, 0, dt[i], 0, 0, 0.5*dt2, 0, 0,
+              0, 0, 0, 0, 1, 0, 0, dt[i], 0, 0, 0.5*dt2, 0,
+              0, 0, 0, 0, 0, 1, 0, 0, dt[i], 0, 0, 0.5*dt2,
+              0, 0, 0, 0, 0, 0, 1, 0, 0, dt[i], 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 1, 0, 0, dt[i], 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, dt[i],
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        // 12*3
+        Bi << 1/24*dt4, 0, 0,
+              0, 1/24*dt4, 0,
+              0, 0, 1/24*dt4,
+              1/6*dt3, 0, 0,
+              0, 1/6*dt3, 0,
+              0, 0, 1/6*dt3,
+              1/2*dt2, 0, 0,
+              0, 1/2*dt2, 0,
+              0, 0, 1/2*dt2,
+              dt[i], 0, 0,
+              0, dt[i], 0,
+              0, 0, dt[i];
+        // 12*1
+        ci << 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
         A[i] = Ai; B[i] = Bi; c[i] = ci;
     }
 
     for(int i = 0; i <= HorizonNum; ++i) {
         // 追参考位置
-        Qi << lamb1[i], 0, 0, 0, 0, 0,
-              0, lamb1[i], 0, 0, 0, 0,
-              0, 0, lamb1[i], 0, 0, 0,
-              0, 0, 0, 0.01, 0, 0,
-              0, 0, 0, 0, 0.01, 0,
-              0, 0, 0, 0, 0, 0.01;
+        Qi << lamb1[i], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+              0, lamb1[i], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, lamb1[i], 0, 0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, lamb2[i], 0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, lamb2[i], 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, lamb2[i], 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0.0000001, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0.0000001, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0.0000001, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0000001, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0000001, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0000001;
         Li << -Px[i] * lamb1[i],
               -Py[i] * lamb1[i],
               -Pz[i] * lamb1[i],
+              -Vx[i] * lamb2[i],
+              -Vy[i] * lamb2[i],
+              -Vz[i] * lamb2[i],
+              0,
+              0,
+              0,
               0,
               0,
               0;
-        // 限制纵向加速度
-        Ri << lamb2[i], 0, 0,
-              0, lamb6[i], 0,
-              0, 0, lamb6[i];
+        // 限制控制输入
+        Ri << lamb3[i], 0, 0,
+              0, lamb3[i], 0,
+              0, 0, lamb3[i];
         Wi << 0,
               0,
               0;
@@ -553,19 +578,12 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
         aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.81);
         g[i][TrjSizeEqx].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
-        //信赖域约束
-        ppp[0] = -inf;ppp[1] = 0;ppp[2] = 0.3*v_norm[i];ppp[3] = inf;
-        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
-        aaa[1] = lamb3[i]; bbb[1] = 0; ccc[1] = 0;
-        aaa[2] = lamb3[i]*10; bbb[2] = 0; ccc[2] = lamb3[i]*(-9)*(0.3*v_norm[i])*(0.3*v_norm[i]);
-        g[i][TrjSizeEqx+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
-
         // 曲率罚函数
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
         aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
-        g[i][TrjSizeEqx+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
+        g[i][TrjSizeEqx+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
     }
 
     MPC_ADMMSolver<float, HorizonNum, TrjSizeX, TrjSizeU, TrjSizeYx, TrjSizeYu, TrjSizeEqx, TrjSizeEqu, TrjNumEllx, TrjNumEllu, TrjSizeG, TrjSizeEllx, TrjSizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
@@ -573,12 +591,16 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
     res = mpc.solve();
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end_time - start_time;
-    std::cout << "Time taken by ADMM solver: " << duration.count() << " seconds" << std::endl;
+    std::cout << "Time taken by Traj ADMM solver: " << duration.count() << " seconds" << std::endl;
 
     return;
 }
 
-int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1>& new_centerX, std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1>& new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1>& elliE, vector<float>& dt, vector<Eigen::Vector3f>& ref_points, std::vector<Eigen::Vector3f>& traj_ref_speed, vector<float>& v_norm, vector<Eigen::Matrix<float, 3, 3>>& Rk, BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res) {
+int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1>& new_centerX,
+                 std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1>& new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1>& elliE,
+                 vector<float>& dt, vector<Eigen::Vector3f>& ref_points, std::vector<Eigen::Vector3f>& traj_ref_speed, vector<float>& v_norm, vector<Eigen::Matrix<float, 3, 3>>& Rk,
+                 BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res) {
+
     float q=0.35, st=0, wei=10, weig=50; int K=250;
     std::cout << "please enter the inner iteration num" << std::endl;
     cin >> K;
@@ -625,13 +647,13 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
             lamb1.push_back(0.04);
         }
         
-        lamb2.push_back(0.0001);// 追参考速度
+        lamb2.push_back(1.0f);// 追参考速度
         lamb3.push_back(0.001);// 最小化控制输入
-        lamb4.push_back(1000);//曲率过大
+        lamb4.push_back(0.0001);//曲率过大
         lamb5.push_back(0.1);//凸走廊约束
     }
     // for (int i = 0; i < 100; i++) {
-        solveunit3DTraj(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
+        solveunit3DTraj(dt, Px, Py, Pz, Vx, Vy, Vz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
     // }
 
     gettimeofday(&T2,NULL);

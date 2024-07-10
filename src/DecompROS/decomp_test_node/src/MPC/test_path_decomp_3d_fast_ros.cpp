@@ -302,12 +302,35 @@ int main(int argc, char ** argv){
 
   // 轨迹优化问题fomulate
   std::cout << "start solve Traj MPC" << std::endl;
-  BlockVector<float, HorizonNum + 1, SizeX + SizeU> res_traj;
+  BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU> res_traj;
   res_traj.setZero();
   solveMpcTraj(traj_mpc_polyhedrons, traj_new_centerX, traj_new_centerU, traj_elliE, traj_dt, traj_ref_points, traj_ref_speed, traj_v_norm, traj_Rk, res_traj);
   std::cout << "end solve Traj Mpc" << std::endl;
 
+  std::cout << "traj t: " << std::endl;
+  for (int i = 0; i < HorizonNum + 1; i++) {
+    std::cout << i*0.1f << std::endl;
+  }
 
+  std::cout << "traj pos: " << std::endl;
+  for (int i = 0; i < HorizonNum + 1; i++) {
+    std::cout << sqrtf(res_traj.v[i](1, 0)*res_traj.v[i](1, 0) + res_traj.v[i](2, 0)*res_traj.v[i](2, 0) + res_traj.v[i](0, 0)*res_traj.v[i](0, 0)) << std::endl;
+  }
+
+  std::cout << "traj speed: " << std::endl;
+  for (int i = 0; i < HorizonNum + 1; i++) {
+    std::cout << sqrtf(res_traj.v[i](3, 0)*res_traj.v[i](3, 0) + res_traj.v[i](4, 0)*res_traj.v[i](4, 0) + res_traj.v[i](5, 0)*res_traj.v[i](5, 0)) << std::endl;
+  }
+
+  // std::cout << "traj speed y: " << std::endl;
+  // for (int i = 0; i < HorizonNum + 1; i++) {
+  //   std::cout << res_traj.v[i](4, 0) << std::endl;
+  // }
+
+  // std::cout << "traj speed z: " << std::endl;
+  // for (int i = 0; i < HorizonNum + 1; i++) {
+  //   std::cout << res_traj.v[i](5, 0) << std::endl;
+  // }
 
 
 
