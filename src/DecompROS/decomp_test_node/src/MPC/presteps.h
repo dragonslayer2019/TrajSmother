@@ -67,12 +67,12 @@ typedef Eigen::Matrix<float, SizeYx, SizeX> MatrixHx;
 typedef Eigen::Matrix<float, SizeYu, SizeU> MatrixHu;
 
 // 轨迹优化全局变量
-const int TrjSizeX = 6, TrjSizeU = 3;
+const int TrjSizeX = 12, TrjSizeU = 3;
 const int TrjSizeEqx = 11, TrjSizeEqu = 0;
-const int TrjNumEllx = 2, TrjNumEllu = 1;
+const int TrjNumEllx = 2, TrjNumEllu = 0;
 const int TrjSizeG = TrjSizeEqx + TrjNumEllx + TrjSizeEqu + TrjNumEllu;
-const int TrjSizeYx = 17, TrjSizeYu = 2;
-int TrjSizeEllx[TrjNumEllx] = {3,3}, TrjSizeEllu[TrjNumEllu] = {2};
+const int TrjSizeYx = 16, TrjSizeYu = 0;
+int TrjSizeEllx[TrjNumEllx] = {3, 2}, TrjSizeEllu[TrjNumEllu] = {};
 
 typedef Eigen::Matrix<float, TrjSizeX, TrjSizeX> TrjMatrixX;
 typedef Eigen::Matrix<float, TrjSizeU, TrjSizeU> TrjMatrixU;
@@ -405,7 +405,7 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
 
 void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
                  vector<Eigen::Matrix<float, 3, 3>> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
-                 vector<float> lamb5, vector<float> lamb6, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1> new_centerX,
+                 vector<float> lamb5, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1> new_centerX,
                  std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res, int K = 250) {
 
     std::array<TrjMatrixX, HorizonNum + 1> Q;
@@ -631,7 +631,7 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
         lamb5.push_back(0.1);//凸走廊约束
     }
     // for (int i = 0; i < 100; i++) {
-        // solveunit3DTraj(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
+        solveunit3DTraj(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
     // }
 
     gettimeofday(&T2,NULL);
