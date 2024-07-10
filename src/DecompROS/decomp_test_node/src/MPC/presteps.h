@@ -66,8 +66,24 @@ typedef Eigen::Matrix<float, SizeU, 1> VectorU;
 typedef Eigen::Matrix<float, SizeYx, SizeX> MatrixHx;
 typedef Eigen::Matrix<float, SizeYu, SizeU> MatrixHu;
 
+// 轨迹优化全局变量
+const int TrjSizeX = 6, TrjSizeU = 3;
+const int TrjSizeEqx = 11, TrjSizeEqu = 0;
+const int TrjNumEllx = 2, TrjNumEllu = 1;
+const int TrjSizeG = TrjSizeEqx + TrjNumEllx + TrjSizeEqu + TrjNumEllu;
+const int TrjSizeYx = 17, TrjSizeYu = 2;
+int TrjSizeEllx[TrjNumEllx] = {3,3}, TrjSizeEllu[TrjNumEllu] = {2};
+
+typedef Eigen::Matrix<float, TrjSizeX, TrjSizeX> TrjMatrixX;
+typedef Eigen::Matrix<float, TrjSizeU, TrjSizeU> TrjMatrixU;
+typedef Eigen::Matrix<float, TrjSizeX, TrjSizeU> TrjMatrixB;
+typedef Eigen::Matrix<float, TrjSizeX, 1> TrjVectorX;
+typedef Eigen::Matrix<float, TrjSizeU, 1> TrjVectorU;
+typedef Eigen::Matrix<float, TrjSizeYx, TrjSizeX> TrjMatrixHx;
+typedef Eigen::Matrix<float, TrjSizeYu, TrjSizeU> TrjMatrixHu;
+
 // 步长
-float max_length = 0.5;// 3d 0.3 2d 0.5
+float max_length = 0.3;// 3d 0.3 2d 0.5
 float max_acceleration = 2.0f;
 float max_deceleration = 2.0f;
 float max_speed = 5.0f;
@@ -314,7 +330,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
+int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, TrjSizeX + SizeU>& res) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
     std::cout << "please enter the inner iteration num" << std::endl;
     cin >> K;
@@ -344,78 +360,22 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         Py[i] = ref_points[i].y();
         Pz[i] = ref_points[i].z();
 
-        if (i == 0) {
-            lamb1.push_back(1);
-        } else if (i >= HorizonNum-2) {
-            lamb1.push_back(1);
-        } else {
-            lamb1.push_back(0.01);
-        }
-        
-        lamb2.push_back(0.1);//纵向加速度
-        lamb3.push_back(0.1);//信赖域约束
-        lamb4.push_back(100.0);//曲率过大
-        lamb5.push_back(0.00000001);//凸走廊约束
-        lamb6.push_back(5.0);//曲率平方
-
-
+        // 2d
         // if (i == 0) {
         //     lamb1.push_back(1);
-        // } else if (i == HorizonNum) {
-        //     lamb1.push_back(1.0);
-        // } else if (i > HorizonNum-6) {
-        //     lamb1.push_back(0.04);
+        // } else if (i >= HorizonNum-2) {
+        //     lamb1.push_back(1);
         // } else {
-        //     lamb1.push_back(0.04);
+        //     lamb1.push_back(0.01);
         // }
         
-        // lamb2.push_back(0.0001);//纵向加速度
-        // lamb3.push_back(0.001);//信赖域约束
-        // lamb4.push_back(1000);//曲率过大
-        // lamb5.push_back(0.1);//凸走廊约束
-        // lamb6.push_back(0.001);//曲率平方
-    }
-    // for (int i = 0; i < 100; i++) {
-        solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
-    // }
+        // lamb2.push_back(0.1);//纵向加速度
+        // lamb3.push_back(0.1);//信赖域约束
+        // lamb4.push_back(100.0);//曲率过大
+        // lamb5.push_back(0.00000001);//凸走廊约束
+        // lamb6.push_back(5.0);//曲率平方
 
-    gettimeofday(&T2,NULL);
-    timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
-    std::cout<<"time taken by mpc problem: "<<timeuse<< " seconds" << std::endl;  //输出时间（单位：ｓ）
-    // std::cout<<"average time taken by mpc problem: "<<timeuse / 100.0f<< " seconds" << std::endl;  //输出时间（单位：ｓ）
-    return 0;
-}
-
-int solveMpcTraj(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
-    float q=0.35, st=0, wei=10, weig=50; int K=250;
-    std::cout << "please enter the inner iteration num" << std::endl;
-    cin >> K;
-    struct timeval T1,T2;
-    float timeuse;
-    gettimeofday(&T1,NULL);
-    // For test: 10, 10, 250
-    // solve(0.2, 0.2, 2.0, 2.0/3, q, 0.7, 1.2, -0.5, -1.2, 10, 18, 30, 38, st, wei, weig, K);
-    vector<float> Px, Py, Pz, Theta, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6;
-    vector<vector<float>> center;
-    vector<vector<Hyperplane<3>>> CorridorP;//分段切平面约束
-    CorridorP.resize(HorizonNum+1);
-    Px.resize(HorizonNum+1);
-    Py.resize(HorizonNum+1);
-    Pz.resize(HorizonNum+1);
-
-    for(int i = 0;i <= HorizonNum; ++i) {
-        // std::cout << "loop: " << i << std::endl;
-        // 切平面约束与椭球约束
-        int plane_size = mpc_polyhedrons[i].hyperplanes().size();
-        CorridorP[i].resize(plane_size);
-        for (int j = 0; j < plane_size; j++) {
-            CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
-        }
-        // 用ref_points为Px、Py、Pz赋值
-        Px[i] = ref_points[i].x();
-        Py[i] = ref_points[i].y();
-        Pz[i] = ref_points[i].z();
-        // 代价权重赋值
+        // 3d
         if (i == 0) {
             lamb1.push_back(1);
         } else if (i == HorizonNum) {
@@ -434,6 +394,244 @@ int solveMpcTraj(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<
     }
     // for (int i = 0; i < 100; i++) {
         solveunit3D(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
+    // }
+
+    gettimeofday(&T2,NULL);
+    timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
+    std::cout<<"time taken by mpc problem: "<<timeuse<< " seconds" << std::endl;  //输出时间（单位：ｓ）
+    // std::cout<<"average time taken by mpc problem: "<<timeuse / 100.0f<< " seconds" << std::endl;  //输出时间（单位：ｓ）
+    return 0;
+}
+
+void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
+                 vector<Eigen::Matrix<float, 3, 3>> Rk, vector<float> lamb1, vector<float> lamb2, vector<float> lamb3, vector<float> lamb4,
+                 vector<float> lamb5, vector<float> lamb6, vector<vector<Hyperplane<3>>> CorridorP, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1> new_centerX,
+                 std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res, int K = 250) {
+
+    std::array<TrjMatrixX, HorizonNum + 1> Q;
+    std::array<TrjMatrixU, HorizonNum + 1> R;
+    std::array<TrjVectorX, HorizonNum + 1> L;
+    std::array<TrjVectorU, HorizonNum + 1> W;
+    std::array<TrjMatrixX, HorizonNum> A;
+    std::array<TrjMatrixB, HorizonNum> B;
+    std::array<TrjVectorX, HorizonNum> c;
+    std::array<TrjMatrixHx, HorizonNum + 1> Hx;
+    std::array<TrjMatrixHu, HorizonNum + 1> Hu;
+
+    TrjMatrixX Ai, Qi;
+    TrjMatrixHx Hxi;
+    TrjMatrixB Bi;
+    TrjMatrixU Ri;
+    TrjMatrixHu Hui;
+    TrjVectorX ci, Li;
+    TrjVectorU Wi;
+
+    // 将矩阵的所有元素设置为1
+    // Hxi.setOnes();
+    // Hui.setOnes();
+
+    std::array<std::array<FunctionG<float>, TrjSizeG>, HorizonNum + 1> g;
+    std::vector<vector<float>> DistC(HorizonNum+1, std::vector<float>(HorizonNum+1));
+    std::vector<float> aaa, bbb, ccc;
+    std::vector<float> ppp;
+    // 状态变量(px, py, pz, vx, vy, vz)^T
+    // 控制输入(mu1, mu2, mu3)^T
+    TrjVectorX x_init;
+    // x_init << 5, 11.5, 0.5, 1, 0.1, 0.1;
+    x_init <<  Px[0], Py[0], Pz[0], 0.0, 0.0, 0.0;
+    // x_init <<  Px[0], Py[0], Pz[0], 1, 0.0, 0.0;
+
+
+
+    for(int i = 0; i <= HorizonNum; ++i) {
+        // 此处为m个切平面约束+一个椭球约束
+        // 计算优化路点到切平面之间距离的结果中的常数转移到gxi函数中               
+        int M = CorridorP[i].size();
+        Hxi.setZero();
+        for (int j = 0; j < M; ++j) {
+            // m行到切平面距离   
+            Hxi(j,0) = -CorridorP[i][j].n_.x();
+            Hxi(j,1) = -CorridorP[i][j].n_.y();
+            Hxi(j,2) =  -CorridorP[i][j].n_.z();
+            Hxi(j,3) = 0;
+            Hxi(j,4) = 0;
+            Hxi(j,5) = 0;
+            // 计算点到切平面距离中的const向量
+            DistC[i][j] = CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() + CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() + CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
+        }
+                
+        // 1个到椭球圆心距离约束
+        for (int k = 0; k < 3; k++) {
+            Hxi(TrjSizeEqx+k, 0) = elliE[i](k, 0);
+            Hxi(TrjSizeEqx+k, 1) = elliE[i](k, 1);
+            Hxi(TrjSizeEqx+k, 2) = elliE[i](k, 2);
+            Hxi(TrjSizeEqx+k, 3) = 0;
+            Hxi(TrjSizeEqx+k, 4) = 0;
+            Hxi(TrjSizeEqx+k, 5) = 0;
+        }
+
+        // 1个信赖域约束
+        Hxi.block(TrjSizeEqx+3, 0, 3, 6).setZero();
+        Hxi(TrjSizeEqx+3, 3) = 1;
+        Hxi(TrjSizeEqx+4, 4) = 1;
+        Hxi(TrjSizeEqx+5, 5) = 1;
+
+        // 此处为一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
+        Hui << 0, 1, 0,
+               0, 0, 1;
+        Hx[i] = Hxi;
+        Hu[i] = Hui;
+    }
+
+    for(int i = 0; i < HorizonNum; ++i) {
+        // 6*6
+        Ai << 1, 0, 0, dt[i], 0, 0,
+              0, 1, 0, 0,  dt[i], 0,
+              0, 0, 1 , 0, 0, dt[i],
+              0, 0, 0 , 1, 0, 0,
+              0, 0, 0 , 0, 1, 0,
+              0, 0, 0 , 0, 0, 1;
+        // 6*3
+        Bi << 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](0,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,2),
+              0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](1,2),
+              0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,0), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*dt[i]*Rk[i](2,2),
+              v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](0,2),
+              v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](1,2),
+              v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,0), v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,1), 0.5*v_norm[i]*v_norm[i]*dt[i]*Rk[i](2,2);
+        // 6*1
+        ci << 0, 0, 0, 0, 0, 0;
+
+        A[i] = Ai; B[i] = Bi; c[i] = ci;
+    }
+
+    for(int i = 0; i <= HorizonNum; ++i) {
+        // 追参考位置
+        Qi << lamb1[i], 0, 0, 0, 0, 0,
+              0, lamb1[i], 0, 0, 0, 0,
+              0, 0, lamb1[i], 0, 0, 0,
+              0, 0, 0, 0.01, 0, 0,
+              0, 0, 0, 0, 0.01, 0,
+              0, 0, 0, 0, 0, 0.01;
+        Li << -Px[i] * lamb1[i],
+              -Py[i] * lamb1[i],
+              -Pz[i] * lamb1[i],
+              0,
+              0,
+              0;
+        // 限制纵向加速度
+        Ri << lamb2[i], 0, 0,
+              0, lamb6[i], 0,
+              0, 0, lamb6[i];
+        Wi << 0,
+              0,
+              0;
+        Q[i] = Qi; R[i] = Ri; L[i] = Li; W[i] = Wi;
+    }
+
+    // 设置状态变量相关的罚函数形状
+    for(int i = 0;i <= 3; ++i) {
+        aaa.push_back(0);
+        bbb.push_back(0);
+        ccc.push_back(0);
+        ppp.push_back(0);
+    }
+    for(int i = 0; i <= HorizonNum; ++i) {
+        // 凸走廊切平面罚函数
+        int M = CorridorP[i].size();
+        for (int j = 0; j < M; j++) {
+            ppp[0] = -inf;ppp[1] = 0.2-DistC[i][j];ppp[2] = 1-DistC[i][j];ppp[3] = inf;
+            aaa[0] = lamb5[i]*10;bbb[0] = lamb5[i]*(-22 + 20*DistC[i][j]);ccc[0] = lamb5[i]*(10*DistC[i][j]*DistC[i][j] - 22*DistC[i][j] + 5);
+            aaa[1] = lamb5[i];bbb[1] = lamb5[i]*(2*DistC[i][j] - 2.45);ccc[1] = lamb5[i]*(DistC[i][j]*DistC[i][j] - 2.45*DistC[i][j] + 1.45);
+            aaa[2] = 0;bbb[2] = 0;ccc[2] = 0;
+            g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
+        }
+        
+        //凸走廊椭球罚函数
+        ppp[0] = -inf;ppp[1] = 0.9;ppp[2] = 1.0;ppp[3] = inf;
+        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
+        aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.81); 
+        aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.81);
+        g[i][TrjSizeEqx].AddQuadratic(3, aaa, bbb, ccc, ppp);
+
+        //信赖域约束
+        ppp[0] = -inf;ppp[1] = 0;ppp[2] = 0.3*v_norm[i];ppp[3] = inf;
+        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
+        aaa[1] = lamb3[i]; bbb[1] = 0; ccc[1] = 0;
+        aaa[2] = lamb3[i]*10; bbb[2] = 0; ccc[2] = lamb3[i]*(-9)*(0.3*v_norm[i])*(0.3*v_norm[i]);
+        g[i][TrjSizeEqx+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
+
+        // 曲率罚函数
+        ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
+        aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
+        aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
+        aaa[2] = lamb4[i]*10; bbb[2] = 0; ccc[2] = lamb4[i]*(-36.25);
+        g[i][TrjSizeEqx+2].AddQuadratic(3, aaa, bbb, ccc, ppp);
+    }
+
+    MPC_ADMMSolver<float, HorizonNum, TrjSizeX, TrjSizeU, TrjSizeYx, TrjSizeYu, TrjSizeEqx, TrjSizeEqu, TrjNumEllx, TrjNumEllu, TrjSizeG, TrjSizeEllx, TrjSizeEllu> mpc(Q, R, L, W, A, B, c, x_init, Hx, Hu, new_centerX, new_centerU, g, 100, KAcc, K);
+    auto start_time = std::chrono::high_resolution_clock::now();
+    res = mpc.solve();
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end_time - start_time;
+    std::cout << "Time taken by ADMM solver: " << duration.count() << " seconds" << std::endl;
+
+    return;
+}
+
+int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1>& new_centerX, std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1>& new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1>& elliE, vector<float>& dt, vector<Eigen::Vector3f>& ref_points, std::vector<Eigen::Vector3f>& traj_ref_speed, vector<float>& v_norm, vector<Eigen::Matrix<float, 3, 3>>& Rk, BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res) {
+    float q=0.35, st=0, wei=10, weig=50; int K=250;
+    std::cout << "please enter the inner iteration num" << std::endl;
+    cin >> K;
+    
+    // 计时
+    struct timeval T1,T2;
+    float timeuse;
+    gettimeofday(&T1,NULL);
+
+    vector<float> Px, Py, Pz, Vx, Vy, Vz, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5;
+    vector<vector<float>> center;
+    vector<vector<Hyperplane<3>>> CorridorP;//分段切平面约束
+    CorridorP.resize(HorizonNum+1);
+    Px.resize(HorizonNum+1);
+    Py.resize(HorizonNum+1);
+    Pz.resize(HorizonNum+1);
+    Vx.resize(HorizonNum+1);
+    Vy.resize(HorizonNum+1);
+    Vz.resize(HorizonNum+1);
+
+    for(int i = 0;i <= HorizonNum; ++i) {
+        // std::cout << "loop: " << i << std::endl;
+        // 切平面约束与椭球约束
+        int plane_size = mpc_polyhedrons[i].hyperplanes().size();
+        CorridorP[i].resize(plane_size);
+        for (int j = 0; j < plane_size; j++) {
+            CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
+        }
+        // 用ref_points为Px、Py、Pz赋值
+        Px[i] = ref_points[i].x();
+        Py[i] = ref_points[i].y();
+        Pz[i] = ref_points[i].z();
+        Vx[i] = traj_ref_speed[i].x();
+        Vy[i] = traj_ref_speed[i].y();
+        Vz[i] = traj_ref_speed[i].z();
+        // 代价权重赋值
+        if (i == 0) {
+            lamb1.push_back(1);
+        } else if (i == HorizonNum) {
+            lamb1.push_back(1.0);
+        } else if (i > HorizonNum-6) {
+            lamb1.push_back(0.04);
+        } else {
+            lamb1.push_back(0.04);
+        }
+        
+        lamb2.push_back(0.0001);// 追参考速度
+        lamb3.push_back(0.001);// 最小化控制输入
+        lamb4.push_back(1000);//曲率过大
+        lamb5.push_back(0.1);//凸走廊约束
+    }
+    // for (int i = 0; i < 100; i++) {
+        // solveunit3DTraj(dt, Px, Py, Pz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
     // }
 
     gettimeofday(&T2,NULL);

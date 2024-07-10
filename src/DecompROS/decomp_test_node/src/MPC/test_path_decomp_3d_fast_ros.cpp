@@ -172,19 +172,21 @@ int main(int argc, char ** argv){
   std::cout << "end solveMpc" << std::endl;
   
   vector<Eigen::Vector3f> res_points;
-  vector<float> path_points;
-  float temp_dis = 0.0f;
-  path_points.push_back(temp_dis);
   res_points.resize(HorizonNum + 1);
   for (int i = 0; i < res_points.size(); i++) {
     res_points[i].x() = res.v[i](0, 0);
     res_points[i].y() = res.v[i](1, 0);
     res_points[i].z() = res.v[i](2, 0);
-    if (i != res_points.size() - 1) {
-      temp_dis += distance(ref_points[i], ref_points[i+1]);
-      path_points.push_back(temp_dis);
-    }
   }
+
+  vector<float> path_points;
+  float temp_dis = 0.0f;
+  path_points.push_back(temp_dis);
+  for (int i = 0; i < res_points.size() - 1; i++) {
+      temp_dis += distance(res_points[i], res_points[i+1]);
+      path_points.push_back(temp_dis);
+  }
+
   vector<float> ref_cur = computeResCurvature(ref_points, ref_points);
   vector<float> res_cur = computeResCurvature(res_points, ref_points);
 
@@ -212,6 +214,7 @@ int main(int argc, char ** argv){
   std::vector<float> final_refv = smoothSpeeds(fit_refv, delta_x);
 
 
+
   /**************轨迹优化****************/
   // 生成初始参考速度曲线
   // 1.找到距离初始位置最近的路点折线段（注意超出范围的情况），然后将初始速度投影上去
@@ -228,26 +231,81 @@ int main(int argc, char ** argv){
   float min_acc = -3.0; // 最小加速度
   
   auto start_time2 = std::chrono::high_resolution_clock::now();
-  std::vector<float> smooth_speeds = generateSpeedProfile(path_points, final_refv, max_acc, min_acc, start_pos, start_vel);
+  std::vector<State> smooth_ref_traj = generateSpeedProfile(path_points, final_refv, max_acc, min_acc, start_pos, start_vel);
   auto end_time2 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration2 = end_time2 - start_time2;
   std::cout << "Time taken by speed generator: " << duration2.count() << " seconds" << std::endl;
+ 
+  // 获取从无人机初始位置开始的平滑路径
+  std::vector<Eigen::Vector3f> sub_res_points(res_points.begin() + closest_idx, res_points.begin() + closest_idx + HorizonNum+1);
+  
+  // 获取轨迹优化参考路径点
+  std::vector<Eigen::Vector3f> traj_ref_points = get_traj_ref_points(smooth_ref_traj, sub_res_points);
 
-  std::ofstream outfile("/home/alan/桌面/plot/speed.txt");
-  for (const auto &speed : smooth_speeds) {
-      outfile << speed << "\n";
+  // 获取轨迹优化参考速度点
+  vector<float> traj_v_norm;
+  for (int i = 0; i <= HorizonNum; i++) {
+    traj_v_norm.push_back(smooth_ref_traj[i].velocity);
   }
-  outfile.close();
+  std::vector<Eigen::Vector3f> traj_ref_speed;
+  for (int i = 0; i < HorizonNum; ++i) {
+    traj_ref_speed.push_back((sub_res_points[i+1] - sub_res_points[i]).normalized()*traj_v_norm[i]);
+  }
+  traj_ref_speed.push_back((sub_res_points[HorizonNum] - sub_res_points[HorizonNum-1]).normalized()*traj_v_norm[HorizonNum]);
 
+  // 获取采样步长
+  vector <float> traj_dt(HorizonNum, 0.1f);
 
+  // 基于均匀时间采样得到的路径点进行凸走廊匹配
+  vec_E<Polyhedron<3>> traj_mpc_polyhedrons;
+  std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> traj_elliE;
+  std::array<Eigen::Matrix<float, TrjSizeYx - TrjSizeEqx, 1>, HorizonNum + 1> traj_new_centerX;
+  std::array<Eigen::Matrix<float, TrjSizeYu - TrjSizeEqu, 1>, HorizonNum + 1> traj_new_centerU;
+  for (auto& mat : traj_new_centerU) {
+    mat.setZero();
+  }
 
+  for (int i = 0; i <= HorizonNum; ++i) {
+    //判断路点处于哪段，并范回对应的段数id
+    int idx = findClosestSegment(traj_ref_points[i], path_f);
+    traj_mpc_polyhedrons.push_back(polyhedrons[idx]);
+    // std::cout << "point " << i << " is on " << idx << " lane" << std::endl;
+    traj_elliE[i] = E_inverse[idx];
+    traj_new_centerX[i].block(0, 0, 3, 1) = E_inverse_d[idx];
+  }
+
+  // 计算traj_Rk
+  vector<Eigen::Matrix<float, 3, 3>> traj_Rk;
+  traj_Rk.resize(HorizonNum);
+  Eigen::Vector3f p0;
+  Eigen::Vector3f p1;
+  Eigen::Vector3f p2;
+  for (int i = 0; i < HorizonNum; ++i) {
+    // 计算Rk[i]，使得其i第一列列向量与dir平行，其余两列单位列向量与其组成正交矩阵
+    if (i == 0) {
+        p0 = traj_ref_points[0];
+        p1 = traj_ref_points[1];
+        p2 = traj_ref_points[2];
+        traj_Rk[i] = calculateTransformationMatrix(p0, p1, p2);
+    } else if (i == HorizonNum - 1) {
+        p0 = traj_ref_points[HorizonNum - 2];
+        p1 = traj_ref_points[HorizonNum - 1];
+        p2 = traj_ref_points[HorizonNum];
+        traj_Rk[i] = calculateTransformationMatrix(p0, p1, p2);
+    } else {
+        p0 = traj_ref_points[i-1];
+        p1 = traj_ref_points[i];
+        p2 = traj_ref_points[i+1];
+        traj_Rk[i] = calculateTransformationMatrix(p0, p1, p2);
+    }
+  }
 
   // 轨迹优化问题fomulate
-  // std::cout << "start solve Traj MPC" << std::endl;
-  // BlockVector<float, HorizonNum + 1, SizeX + SizeU> res_traj;
-  // res_traj.setZero();
-  // solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res_traj);
-  // std::cout << "end solve Traj Mpc" << std::endl;
+  std::cout << "start solve Traj MPC" << std::endl;
+  BlockVector<float, HorizonNum + 1, SizeX + SizeU> res_traj;
+  res_traj.setZero();
+  solveMpcTraj(traj_mpc_polyhedrons, traj_new_centerX, traj_new_centerU, traj_elliE, traj_dt, traj_ref_points, traj_ref_speed, traj_v_norm, traj_Rk, res_traj);
+  std::cout << "end solve Traj Mpc" << std::endl;
 
 
 
