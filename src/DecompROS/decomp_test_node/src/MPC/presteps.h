@@ -46,13 +46,15 @@ VectorU Wi;
 */
 
 
-// MPC步数、状态变量个数、控制变量个数、5个切平面+6个bbox约束+1个椭球约束、1个最小化曲率+1个防止曲率过大的约束
+// MPC steps, number of state variables, number of control variables,
+// 5 cutting planes + 6 bbox constraints + 1 ellipsoid constraint,
+// 1 constraint to minimize curvature + 1 constraint to prevent excessive curvature
 const int SizeX = 6, SizeU = 3;
 const int SizeEqx = 11, SizeEqu = 0;
 const int NumEllx = 2, NumEllu = 1;
 const int SizeG = SizeEqx + NumEllx + SizeEqu + NumEllu;
 const int SizeYx = 17, SizeYu = 2;
-const int HorizonNum = 49;
+const int HorizonNum = 69;
 const float pi = M_PI;
 int KAcc = 150;
 const float inf = 1e5;
@@ -66,7 +68,7 @@ typedef Eigen::Matrix<float, SizeU, 1> VectorU;
 typedef Eigen::Matrix<float, SizeYx, SizeX> MatrixHx;
 typedef Eigen::Matrix<float, SizeYu, SizeU> MatrixHu;
 
-// 轨迹优化全局变量
+// Trajectory Optimization Global Variables
 const int TrjSizeX = 12, TrjSizeU = 3;
 const int TrjSizeEqx = 11, TrjSizeEqu = 0;
 const int TrjNumEllx = 2, TrjNumEllu = 0;
@@ -82,7 +84,6 @@ typedef Eigen::Matrix<float, TrjSizeU, 1> TrjVectorU;
 typedef Eigen::Matrix<float, TrjSizeYx, TrjSizeX> TrjMatrixHx;
 typedef Eigen::Matrix<float, TrjSizeYu, TrjSizeU> TrjMatrixHu;
 
-// 步长
 float max_length = 0.3;// 3d 0.3 2d 0.5
 float max_acceleration = 2.0f;
 float max_deceleration = 2.0f;
@@ -90,7 +91,7 @@ float max_speed = 5.0f;
 float ay_max = 5.0f;
 
 
-// 计算点到直线段的最短距离
+// Calculate the shortest distance from a point to a line segment
 float pointToSegmentDistance(const Eigen::Vector3f& point, const Eigen::Vector3f& segStart, const Eigen::Vector3f& segEnd) {
     Eigen::Vector3f v = segEnd - segStart;
     Eigen::Vector3f w = point - segStart;
@@ -110,7 +111,7 @@ float pointToSegmentDistance(const Eigen::Vector3f& point, const Eigen::Vector3f
     return (point - pb).norm();
 }
 
-// 找出距离点最近的折线段
+// Find the polyline segment closest to a point
 int findClosestSegment(const Eigen::Vector3f& point, const std::vector<Eigen::Vector3f>& res_points) {
     if (res_points.size() < 2) {
         throw std::invalid_argument("The number of points must be at least 2 to form a segment.");
@@ -134,19 +135,19 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
     Eigen::Vector3f AB = B - A;
     Eigen::Vector3f AP = P - A;
     
-    // 计算叉积
+    // Calculate the cross product
     Eigen::Vector3f crossProduct = AB.cross(AP);
     
-    // 判断叉积是否为零向量
+    // Determine if the cross product is a zero vector
     if (!crossProduct.isZero(1e-1)) { // 允许一定的误差范围
         return false;
     }
     
-    // 计算点积
+    // Calculating the dot product
     float dotProduct = AP.dot(AB);
     float squaredLengthAB = AB.dot(AB);
     
-    // 判断点积是否在规定范围内
+    // Determine whether the dot product is within the specified range
     if (0 <= dotProduct && dotProduct <= squaredLengthAB) {
         return true;
     } else {
@@ -178,41 +179,31 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     VectorX ci, Li;
     VectorU Wi;
 
-    // 将矩阵的所有元素设置为1
-    // Hxi.setOnes();
-    // Hui.setOnes();
-
     std::array<std::array<FunctionG<float>, SizeG>, HorizonNum + 1> g;
     std::vector<vector<float>> DistC(HorizonNum+1, std::vector<float>(HorizonNum+1));
     std::vector<float> aaa, bbb, ccc;
     std::vector<float> ppp;
-    // 状态变量(px, py, pz, vx, vy, vz)^T
-    // 控制输入(mu1, mu2, mu3)^T
+    // State variables(px, py, pz, vx, vy, vz)^T
+    // Control Input(mu1, mu2, mu3)^T
     VectorX x_init;
-    // x_init << 5, 11.5, 0.5, 1, 0.1, 0.1;
     x_init <<  Px[0], Py[0], Pz[0], 0.0, 0.0, 0.0;
-    // x_init <<  Px[0], Py[0], Pz[0], 1, 0.0, 0.0;
-
 
 
     for(int i = 0; i <= HorizonNum; ++i) {
-        // 此处为m个切平面约束+一个椭球约束
-        // 计算优化路点到切平面之间距离的结果中的常数转移到gxi函数中               
+        // Here are m tangent plane constraints + one ellipsoid constraint           
         int M = CorridorP[i].size();
         Hxi.setZero();
-        for (int j = 0; j < M; ++j) {
-            // m行到切平面距离   
+        for (int j = 0; j < M; ++j) {   
             Hxi(j,0) = -CorridorP[i][j].n_.x();
             Hxi(j,1) = -CorridorP[i][j].n_.y();
             Hxi(j,2) =  -CorridorP[i][j].n_.z();
             Hxi(j,3) = 0;
             Hxi(j,4) = 0;
             Hxi(j,5) = 0;
-            // 计算点到切平面距离中的const向量
             DistC[i][j] = CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() + CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() + CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
         }
                 
-        // 1个到椭球圆心距离约束
+        // 1 distance constraint to the ellipsoid center
         for (int k = 0; k < 3; k++) {
             Hxi(SizeEqx+k, 0) = elliE[i](k, 0);
             Hxi(SizeEqx+k, 1) = elliE[i](k, 1);
@@ -222,13 +213,13 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
             Hxi(SizeEqx+k, 5) = 0;
         }
 
-        // 1个信赖域约束
+        // 1 trust region constraint
         Hxi.block(SizeEqx+3, 0, 3, 6).setZero();
         Hxi(SizeEqx+3, 3) = 1;
         Hxi(SizeEqx+4, 4) = 1;
         Hxi(SizeEqx+5, 5) = 1;
 
-        // 此处为一个曲率罚函数   ck = sqrt(mu2^2+mu3^2)
+        // Here is a curvature penalty function   ck = sqrt(mu2^2+mu3^2)
         Hui << 0, 1, 0,
                0, 0, 1;
         Hx[i] = Hxi;
@@ -257,7 +248,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     }
 
     for(int i = 0; i <= HorizonNum; ++i) {
-        // 追参考位置
+        // Tracking reference position
         Qi << lamb1[i], 0, 0, 0, 0, 0,
               0, lamb1[i], 0, 0, 0, 0,
               0, 0, lamb1[i], 0, 0, 0,
@@ -270,7 +261,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
               0,
               0,
               0;
-        // 限制纵向加速度
+        // Limiting longitudinal acceleration
         Ri << lamb2[i], 0, 0,
               0, lamb6[i], 0,
               0, 0, lamb6[i];
@@ -280,7 +271,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         Q[i] = Qi; R[i] = Ri; L[i] = Li; W[i] = Wi;
     }
 
-    // 设置状态变量相关的罚函数形状
+    // Set the shape of the penalty function associated with the state variable
     for(int i = 0;i <= 3; ++i) {
         aaa.push_back(0);
         bbb.push_back(0);
@@ -288,7 +279,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
         ppp.push_back(0);
     }
     for(int i = 0; i <= HorizonNum; ++i) {
-        // 凸走廊切平面罚函数
+        // Convex Corridor Tangent Plane Penalty Function
         int M = CorridorP[i].size();
         for (int j = 0; j < M; j++) {
             ppp[0] = -inf;ppp[1] = 0.2-DistC[i][j];ppp[2] = 1-DistC[i][j];ppp[3] = inf;
@@ -298,21 +289,21 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
             g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
         }
         
-        //凸走廊椭球罚函数
+        // Convex corridor ellipsoid penalty function
         ppp[0] = -inf;ppp[1] = 0.9;ppp[2] = 1.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.81); 
         aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.81);
         g[i][SizeEqx].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
-        //信赖域约束
+        // Trust Region Constraints
         ppp[0] = -inf;ppp[1] = 0;ppp[2] = 0.3*v_norm[i];ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb3[i]; bbb[1] = 0; ccc[1] = 0;
         aaa[2] = lamb3[i]*10; bbb[2] = 0; ccc[2] = lamb3[i]*(-9)*(0.3*v_norm[i])*(0.3*v_norm[i]);
         g[i][SizeEqx+1].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
-        // 曲率罚函数
+        // Curvature Penalty Function
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
@@ -332,8 +323,8 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
 
 int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
-    std::cout << "please enter the inner iteration num" << std::endl;
-    cin >> K;
+    // std::cout << "please enter the inner iteration num" << std::endl;
+    // cin >> K;
     struct timeval T1,T2;
     float timeuse;
     gettimeofday(&T1,NULL);
@@ -341,15 +332,13 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
     // solve(0.2, 0.2, 2.0, 2.0/3, q, 0.7, 1.2, -0.5, -1.2, 10, 18, 30, 38, st, wei, weig, K);
     vector<float> Px, Py, Pz, Theta, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6;
     vector<vector<float>> center;
-    vector<vector<Hyperplane<3>>> CorridorP;//分段切平面约束
+    vector<vector<Hyperplane<3>>> CorridorP;
     CorridorP.resize(HorizonNum+1);
     Px.resize(HorizonNum+1);
     Py.resize(HorizonNum+1);
     Pz.resize(HorizonNum+1);
 
     for(int i = 0;i <= HorizonNum; ++i) {
-        // std::cout << "loop: " << i << std::endl;
-        // 切平面约束与椭球约束
         int plane_size = mpc_polyhedrons[i].hyperplanes().size();
         CorridorP[i].resize(plane_size);
         for (int j = 0; j < plane_size; j++) {
@@ -427,10 +416,6 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
     TrjVectorX ci, Li;
     TrjVectorU Wi;
 
-    // 将矩阵的所有元素设置为1
-    // Hxi.setOnes();
-    // Hui.setOnes();
-
     std::array<std::array<FunctionG<float>, TrjSizeG>, HorizonNum + 1> g;
     std::vector<vector<float>> DistC(HorizonNum+1, std::vector<float>(HorizonNum+1));
     std::vector<float> aaa, bbb, ccc;
@@ -438,40 +423,29 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
     // 状态变量(px, py, pz, vx, vy, vz)^T
     // 控制输入(mu1, mu2, mu3)^T
     TrjVectorX x_init;
-    // x_init << 5, 11.5, 0.5, 1, 0.1, 0.1;
     x_init <<  Px[0], Py[0], Pz[0], Vx[0], Vy[0], Vz[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f;
 
-    for(int i = 0; i <= HorizonNum; ++i) {
-        // 此处为m个切平面约束+一个椭球约束
-        // 计算优化路点到切平面之间距离的结果中的常数转移到gxi函数中               
+    for(int i = 0; i <= HorizonNum; ++i) {             
         int M = CorridorP[i].size();
         Hxi.setZero();
         for (int j = 0; j < M; ++j) {
-            // m行到切平面距离   
             Hxi(j,0) = -CorridorP[i][j].n_.x();
             Hxi(j,1) = -CorridorP[i][j].n_.y();
             Hxi(j,2) =  -CorridorP[i][j].n_.z();
             Hxi(j,3) = 0;
             Hxi(j,4) = 0;
             Hxi(j,5) = 0;
-            // 计算点到切平面距离中的const向量
             DistC[i][j] = CorridorP[i][j].n_.x()*CorridorP[i][j].p_.x() + CorridorP[i][j].n_.y()*CorridorP[i][j].p_.y() + CorridorP[i][j].n_.z()*CorridorP[i][j].p_.z();
         }
                 
-        // 1个到椭球圆心距离约束
         for (int k = 0; k < 3; k++) {
             Hxi(TrjSizeEqx+k, 0) = elliE[i](k, 0);
             Hxi(TrjSizeEqx+k, 1) = elliE[i](k, 1);
             Hxi(TrjSizeEqx+k, 2) = elliE[i](k, 2);
-            // Hxi(TrjSizeEqx+k, 3) = 0;
-            // Hxi(TrjSizeEqx+k, 4) = 0;
-            // Hxi(TrjSizeEqx+k, 5) = 0;
             Hxi.block(TrjSizeEqx+k, 3, 1, 9).setZero();
         }
 
-        // 1个加速度表示的曲率约束
         Hxi.block(TrjSizeEqx+3, 0, 2, 12).setZero();
-        // ？？？ 这里a1,a2,a3被Rk耦合在一起来表示mu2 mu3
         Hxi(TrjSizeEqx+3, 3) = Rk[i](1,0);Hxi(TrjSizeEqx+3, 4) = Rk[i](1,1);Hxi(TrjSizeEqx+3, 5) = Rk[i](1,2);
         Hxi(TrjSizeEqx+4, 3) = Rk[i](2,0);Hxi(TrjSizeEqx+4, 4) = Rk[i](2,1);Hxi(TrjSizeEqx+4, 5) = Rk[i](2,2);
 
@@ -518,7 +492,6 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
     }
 
     for(int i = 0; i <= HorizonNum; ++i) {
-        // 追参考位置
         Qi << lamb1[i], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
               0, lamb1[i], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
               0, 0, lamb1[i], 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -543,7 +516,6 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
               0,
               0,
               0;
-        // 限制控制输入
         Ri << lamb3[i], 0, 0,
               0, lamb3[i], 0,
               0, 0, lamb3[i];
@@ -553,7 +525,6 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
         Q[i] = Qi; R[i] = Ri; L[i] = Li; W[i] = Wi;
     }
 
-    // 设置状态变量相关的罚函数形状
     for(int i = 0;i <= 3; ++i) {
         aaa.push_back(0);
         bbb.push_back(0);
@@ -561,7 +532,6 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
         ppp.push_back(0);
     }
     for(int i = 0; i <= HorizonNum; ++i) {
-        // 凸走廊切平面罚函数
         int M = CorridorP[i].size();
         for (int j = 0; j < M; j++) {
             ppp[0] = -inf;ppp[1] = 0.2-DistC[i][j];ppp[2] = 1-DistC[i][j];ppp[3] = inf;
@@ -571,14 +541,12 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
             g[i][j].AddQuadratic(3, aaa, bbb, ccc, ppp);
         }
         
-        //凸走廊椭球罚函数
         ppp[0] = -inf;ppp[1] = 0.9;ppp[2] = 1.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb5[i]; bbb[1] = 0; ccc[1] = lamb5[i]*(-0.81); 
         aaa[2] = lamb5[i]*2; bbb[2] = 0; ccc[2] = lamb5[i]*(-1.81);
         g[i][TrjSizeEqx].AddQuadratic(3, aaa, bbb, ccc, ppp);
 
-        // 曲率罚函数
         ppp[0] = -inf;ppp[1] = 0.5;ppp[2] = 2.0;ppp[3] = inf;
         aaa[0] = 0; bbb[0] = 0; ccc[0] = 0;
         aaa[1] = lamb4[i]; bbb[1] = 0; ccc[1] = lamb4[i]*(-0.25);
@@ -602,17 +570,16 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
                  BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res) {
 
     float q=0.35, st=0, wei=10, weig=50; int K=250;
-    std::cout << "please enter the inner iteration num" << std::endl;
-    cin >> K;
+    // std::cout << "please enter the inner iteration num" << std::endl;
+    // cin >> K;
     
-    // 计时
     struct timeval T1,T2;
     float timeuse;
     gettimeofday(&T1,NULL);
 
     vector<float> Px, Py, Pz, Vx, Vy, Vz, Ella, Ellb, lamb1, lamb2, lamb3, lamb4, lamb5;
     vector<vector<float>> center;
-    vector<vector<Hyperplane<3>>> CorridorP;//分段切平面约束
+    vector<vector<Hyperplane<3>>> CorridorP;
     CorridorP.resize(HorizonNum+1);
     Px.resize(HorizonNum+1);
     Py.resize(HorizonNum+1);
@@ -622,35 +589,37 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
     Vz.resize(HorizonNum+1);
 
     for(int i = 0;i <= HorizonNum; ++i) {
-        // std::cout << "loop: " << i << std::endl;
-        // 切平面约束与椭球约束
         int plane_size = mpc_polyhedrons[i].hyperplanes().size();
         CorridorP[i].resize(plane_size);
         for (int j = 0; j < plane_size; j++) {
             CorridorP[i][j] = mpc_polyhedrons[i].hyperplanes()[j];
         }
-        // 用ref_points为Px、Py、Pz赋值
         Px[i] = ref_points[i].x();
         Py[i] = ref_points[i].y();
         Pz[i] = ref_points[i].z();
         Vx[i] = traj_ref_speed[i].x();
         Vy[i] = traj_ref_speed[i].y();
         Vz[i] = traj_ref_speed[i].z();
-        // 代价权重赋值
         if (i == 0) {
             lamb1.push_back(1);
         } else if (i == HorizonNum) {
-            lamb1.push_back(1.0);
+            lamb1.push_back(0.04);
         } else if (i > HorizonNum-6) {
             lamb1.push_back(0.04);
         } else {
             lamb1.push_back(0.04);
         }
         
-        lamb2.push_back(1.0f);// 追参考速度
-        lamb3.push_back(0.001);// 最小化控制输入
-        lamb4.push_back(0.0001);//曲率过大
-        lamb5.push_back(0.1);//凸走廊约束
+        if (i > HorizonNum-6) {
+            lamb2.push_back(0.01); 
+        } else {
+            lamb2.push_back(0.01f);
+        }
+        
+
+        lamb3.push_back(0.0001);// 最小化控制输入 0.0001
+        lamb4.push_back(0.0001);//曲率过大 0.0001
+        lamb5.push_back(0.000001);//凸走廊约束 0.1
     }
     // for (int i = 0; i < 100; i++) {
         solveunit3DTraj(dt, Px, Py, Pz, Vx, Vy, Vz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
@@ -665,12 +634,12 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
 
 
 
-// 计算两个三维点之间的欧氏距离
+// Calculate the Euclidean distance between two 3D points
 float distance(const Eigen::Vector3f& p1, const Eigen::Vector3f& p2) {
     return sqrt(pow(p1(0) - p2(0), 2) + pow(p1(1) - p2(1), 2) + pow(p1(2) - p2(2), 2));
 }
 
-// 插值路径点，步长为max_length
+// Interpolate path points with a step size of max_length
 vector<Eigen::Vector3f> interpolatePoints(const vector<Eigen::Vector3f>& points, float max_length) {
     vector<Eigen::Vector3f> interpolated_points;
     interpolated_points.push_back(points[0]);
@@ -696,7 +665,7 @@ vector<Eigen::Vector3f> interpolatePoints(const vector<Eigen::Vector3f>& points,
     return interpolated_points;
 }
 
-// 计算曲率
+// Calculating curvature
 vector<float> computeCurvature(const vector<Eigen::Vector3f>& points, float resample_dist) {
     int n = points.size();
     vector<float> curvature(n, 0.0);
@@ -709,7 +678,7 @@ vector<float> computeCurvature(const vector<Eigen::Vector3f>& points, float resa
     return curvature;
 }
 
-// 高斯平滑
+// Gaussian smoothing
 vector<float> smoothCurvature(const vector<float>& curvature, int window_size) {
     int n = curvature.size();
     vector<float> smoothed_curvature(n, 0.0);
@@ -726,7 +695,7 @@ vector<float> smoothCurvature(const vector<float>& curvature, int window_size) {
     return smoothed_curvature;
 }
 
-// 重新采样路径点
+// Resample waypoints
 vector<Eigen::Vector3f> resamplePath(const vector<Eigen::Vector3f>& points, const vector<float>& smoothed_curvature, float max_length, float max_angle) {
     vector<Eigen::Vector3f> resampled_points;
     resampled_points.push_back(points[0]);
@@ -759,7 +728,7 @@ vector<Eigen::Vector3f> resamplePath(const vector<Eigen::Vector3f>& points, cons
     return resampled_points;
 }
 
-// 计算两个向量之间的夹角（弧度）
+// Calculates the angle (in radians) between two vectors
 float computeAngle(const Eigen::Vector3f& v1, const Eigen::Vector3f& v2) {
     float dot_product = v1.dot(v2);
     float norms = v1.norm() * v2.norm();
@@ -768,7 +737,7 @@ float computeAngle(const Eigen::Vector3f& v1, const Eigen::Vector3f& v2) {
 
 void optimizePath(vector<Eigen::Vector3f>& path) {
     const float min_angle = M_PI / 2; // 120度
-    const float step_size = 0.1; // 移动步长，可以根据需要进行调整
+    const float step_size = 0.1; 
 
     for (size_t i = 1; i < path.size() - 1; ++i) {
         Eigen::Vector3f v1 = path[i] - path[i-1];
@@ -777,7 +746,6 @@ void optimizePath(vector<Eigen::Vector3f>& path) {
         float angle = computeAngle(v1, v2);
 
         if (angle < min_angle) {
-            // 计算移动方向和步长
             Eigen::Vector3f direction;
             if (v1.norm() > v2.norm()) {
                 // 如果 p0p1 比 p1p2 长，沿 p0p1 方向移动 p1
@@ -798,35 +766,28 @@ void optimizePath(vector<Eigen::Vector3f>& path) {
 }
 
 vector<Eigen::Vector3f> get_sample_point(vector<Eigen::Vector3f>& path) {
-    // 输入路径点
-    // vector<Eigen::Vector3f> points = {
-    //     {5, 9.5, 0.5}, {13, 11.5, 3.0}, {15, 9.5, 1.5}, {14, 5, 2.5}
-    // };
-
-    // 插值路径点，确保每段长度不超过max_length
+    // Interpolate path points to ensure that each segment length does not exceed max_length
     vector<Eigen::Vector3f> interpolated_points = interpolatePoints(path, max_length);
 
-    // 计算曲率
+    // Calculating curvature
     vector<float> curvature = computeCurvature(interpolated_points, max_length);
 
-    // 平滑曲率
+    // Smooth Curvature
     vector<float> smoothed_curvature = smoothCurvature(curvature, 8);
 
-    // 重新采样路径点
+    // Resample waypoints
     float max_angle = 20.0;
     vector<Eigen::Vector3f> resampled_points = resamplePath(interpolated_points, smoothed_curvature, max_length, max_angle);
 
     // optimizePath(resampled_points);
 
-    // 标准化参考路径点数为1 + HorizonNum
     vector<Eigen::Vector3f> ref_points(HorizonNum + 1);
     int back_id = resampled_points.size() - 1;
     if (back_id < HorizonNum) {
         std::copy(resampled_points.begin(), resampled_points.end(), ref_points.begin());
-        // 计算最后的path方向
+
         Eigen::Vector3f direction = (resampled_points[back_id] - resampled_points[back_id - 1]).normalized();
 
-        // 延长point
         for (int i = 1; i < HorizonNum+1-back_id; i++) {
             Eigen::Vector3f new_point = resampled_points[back_id] + direction * i * max_length;
             ref_points[back_id + i] = new_point;
@@ -839,13 +800,10 @@ vector<Eigen::Vector3f> get_sample_point(vector<Eigen::Vector3f>& path) {
 }
 
 
-// 计算变换矩阵的函数
 Eigen::Matrix<float, 3, 3> calculateTransformationMatrix(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, const Eigen::Vector3f& p2) {
-    // 计算向量a
     Eigen::Vector3f a = p2 - p1;
     a.normalize();
 
-    // 固定一个向量b的xy分量
     Eigen::Vector3f b(0, 0, 0);
     if (a.z() != 0) {
         b.x() = 1;
@@ -866,7 +824,6 @@ Eigen::Matrix<float, 3, 3> calculateTransformationMatrix(const Eigen::Vector3f& 
 
     b.normalize();
 
-    // 计算第三个正交向量
     Eigen::Vector3f c = a.cross(b);
     c.normalize();
 
@@ -901,7 +858,7 @@ void get_param(const vector<Eigen::Vector3f>& ref_points, vector<float>& v_norm,
     } 
     
     dt[i] = (dis/v_norm[i]);  
-    // 计算Rk[i]，使得其i第一列列向量与dir平行，其余两列单位列向量与其组成正交矩阵
+
     if (i == 0) {
         p0 = ref_points[0];
         p1 = ref_points[1];
@@ -961,7 +918,7 @@ std::vector<float> generateInitialSpeeds(const std::vector<float>& curvatures, c
 
 std::vector<float> smoothLowerEnvelope(const std::vector<float>& data, int window_size) {
     if (window_size <= 1 || data.size() <= 1) {
-        return data; // 如果窗口大小太小或数据量太少，直接返回原始数据
+        return data; 
     }
 
     std::vector<float> smoothed_data(data.size(), 0.0f);

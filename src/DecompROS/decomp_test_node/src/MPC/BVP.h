@@ -163,10 +163,10 @@ std::vector<State> generateSpeedProfile(std::vector<float>& x_data, std::vector<
 }
 
 // 获取参考路径点
-std::vector<Eigen::Vector3f> get_traj_ref_points(std::vector<State>& smooth_ref_traj, vector<Eigen::Vector3f> res_points) {
+std::vector<Eigen::Vector3f> get_traj_ref_points(std::vector<State>& smooth_ref_traj, vector<Eigen::Vector3f> res_points, int step) {
     std::vector<Eigen::Vector3f> traj_ref_points;
     traj_ref_points.push_back(res_points.front());
-    for (size_t i = 1; i < res_points.size(); ++i) {
+    for (size_t i = 1; i < step; ++i) {
         float length = smooth_ref_traj[i].position;
         Eigen::Vector3f unit_point;
         float total_seg_length = 0.0f;

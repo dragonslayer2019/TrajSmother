@@ -6,8 +6,17 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /PointCloud1
         - /EllipsoidArray1
-      Splitter Ratio: 0.5066666603088379
+        - /Path1
+        - /ref_path1
+        - /smooth_traj1
+        - /smooth_traj1/Namespaces1
+        - /RobotModel1
+        - /RobotModel1/Status1
+        - /RobotModel1/Links1
+        - /RobotModel1/Links1/base_link1
+      Splitter Ratio: 0.5120000243186951
     Tree Height: 702
   - Class: rviz/Selection
     Name: Selection
@@ -111,7 +120,7 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.05000000074505806
-      Style: Flat Squares
+      Style: Points
       Topic: /test_decomp/cloud
       Unreliable: false
       Use Fixed Frame: true
@@ -120,24 +129,24 @@ Visualization Manager:
     - Alpha: 0.25
       BoundColor: 255; 0; 0
       Class: decomp_rviz_plugins/PolyhedronArray
-      Enabled: true
+      Enabled: false
       MeshColor: 0; 0; 255
       Name: PolyhedronArray
       Scale: 0.10000000149011612
       State: Mesh
       Topic: /test_decomp/polyhedron_array
       Unreliable: false
-      Value: true
+      Value: false
       VsColor: 0; 255; 0
       VsScale: 1
     - Alpha: 0.30000001192092896
       Class: decomp_rviz_plugins/EllipsoidArray
       Color: 20; 250; 20
-      Enabled: true
+      Enabled: false
       Name: EllipsoidArray
       Topic: /test_decomp/ellipsoid_array
       Unreliable: false
-      Value: true
+      Value: false
     - Class: rviz/Axes
       Enabled: true
       Length: 1
@@ -148,13 +157,13 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 0; 0; 255
-      Enabled: false
+      Color: 10; 100; 25
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
       Line Style: Billboards
-      Line Width: 0.20000000298023224
+      Line Width: 0.05000000074505806
       Name: Path
       Offset:
         X: 0
@@ -167,28 +176,94 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /test_decomp/ref_path_path
       Unreliable: false
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /test_decomp/visualization_marker1
       Name: ref_path
       Namespaces:
-        points_and_lines: true
-        text_marker1: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /test_decomp/visualization_marker
       Name: smooth_path
       Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /test_decomp/visualization_marker2
+      Name: smooth_traj
+      Namespaces:
         points_and_lines: true
-        text_markers: true
+        text_marker2: false
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: false
+      Marker Topic: /test_decomp/visualization_marker3
+      Name: ref_traj
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 10; 200; 200
+      Enabled: false
+      History Length: 1
+      Name: PointStamped
+      Radius: 0.20000000298023224
+      Topic: /test_decomp/point_to_visualize
+      Unreliable: false
+      Value: false
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        propeller01_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        propeller02_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        propeller03_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        propeller04_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: robot_description
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 46; 52; 54
     Default Light: true
     Fixed Frame: map
     Frame Rate: 30
@@ -213,34 +288,34 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 12.93701171875
+      Class: rviz/XYOrbit
+      Distance: 3.2699122428894043
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 5.029368877410889
-        Y: 15.150189399719238
-        Z: 1.948858380317688
-      Focal Shape Fixed Size: true
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5247963666915894
-      Target Frame: <Fixed Frame>
-      Value: Orbit (rviz)
-      Yaw: 6.277970314025879
+      Pitch: 0.48539847135543823
+      Target Frame: base_link
+      Value: XYOrbit (rviz)
+      Yaw: 0.16539883613586426
     Saved: ~
 Window Geometry:
   Displays:
-    collapsed: false
+    collapsed: true
   Height: 1025
-  Hide Left Dock: false
-  Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd00000004000000000000017900000349fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000349000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000016c00000349fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d00000349000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073d00000058fc0100000002fb0000000800540069006d006501000000000000073d000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000005be0000034900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Left Dock: true
+  Hide Right Dock: true
+  QMainWindow State: 000000ff00000000fd00000004000000000000017900000349fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000003d00000349000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000016c00000349fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d00000349000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073d00000058fc0100000002fb0000000800540069006d006500000000000000073d000002eb00fffffffb0000000800540069006d006501000000000000045000000000000000000000073d000003a700000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -248,7 +323,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: false
+    collapsed: true
   Width: 1853
   X: 67
   Y: 27

@@ -1,0 +1,76 @@
+<?xml version="1.0" ?>
+<robot name="drone" xmlns:xacro="http://ros.org/wiki/xacro">
+    <link name="base_link">
+        <visual>
+            <geometry>
+                <box size="0.18 0.18 0.1"/>
+            </geometry>
+            <origin rpy="0 0 0" xyz="0 0 -0.0"/>
+            <material name="white">
+                <color rgba="1 1 1 1"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="propeller01_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="propeller01_link"/>
+        <origin xyz="0.1 0.1 0.05" rpy="0 0 0"/>
+    </joint>
+    <link name="propeller01_link">
+        <visual>
+            <geometry>
+                <cylinder length="0.02" radius="0.08"/>
+            </geometry>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <material name="black">
+                <color rgba="0 0 0 1"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="propeller02_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="propeller02_link"/>
+        <origin xyz="-0.1 0.1 0.05" rpy="0 0 0"/>
+    </joint>
+    <link name="propeller02_link">
+        <visual>
+            <geometry>
+                <cylinder length="0.02" radius="0.08"/>
+            </geometry>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="propeller03_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="propeller03_link"/>
+        <origin xyz="0.1 -0.1 0.05" rpy="0 0 0"/>
+    </joint>
+    <link name="propeller03_link">
+        <visual>
+            <geometry>
+                <cylinder length="0.02" radius="0.08"/>
+            </geometry>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="propeller04_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="propeller04_link"/>
+        <origin xyz="-0.1 -0.1 0.05" rpy="0 0 0"/>
+    </joint>
+    <link name="propeller04_link">
+        <visual>
+            <geometry>
+                <cylinder length="0.02" radius="0.08"/>
+            </geometry>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <material name="black"/>
+        </visual>
+    </link>
+</robot>
