@@ -54,7 +54,7 @@ const int SizeEqx = 11, SizeEqu = 0;
 const int NumEllx = 2, NumEllu = 1;
 const int SizeG = SizeEqx + NumEllx + SizeEqu + NumEllu;
 const int SizeYx = 17, SizeYu = 2;
-const int HorizonNum = 69;
+const int HorizonNum = 49;
 const float pi = M_PI;
 int KAcc = 150;
 const float inf = 1e5;
@@ -89,6 +89,87 @@ float max_acceleration = 2.0f;
 float max_deceleration = 2.0f;
 float max_speed = 5.0f;
 float ay_max = 5.0f;
+
+
+
+
+/*************上游输入************/
+typedef unsigned long long ull;
+
+struct Point3D{
+    double x, y, z;
+    Point3D(double X, double Y, double Z) : x(X), y(Y), z(Z) {}
+    Point3D() : Point3D(0., 0., 0.) {}
+    Point3D(std::vector<double> XYZ) {
+        if(XYZ.size() >= 3) {
+            x = XYZ[0];
+            y = XYZ[1];
+            z = XYZ[2];
+        } else {
+            Point3D();
+        }
+    }
+    Point3D operator[] (int bias) const {
+        return {((bias & 1) ? x : -x), ((bias & 2) ? y : -y), ((bias & 4) ? z : -z)};
+    }
+    Point3D operator+(const Point3D &rhs) const { return {x + rhs.x, y + rhs.y, z + rhs.z}; }
+    Point3D operator-(const Point3D &rhs) const { return {x - rhs.x, y - rhs.y, z - rhs.z}; }
+    Point3D operator*(double k) const { return {x * k, y * k, z * k}; }
+    Point3D operator* (int v) const {
+        return {x * v, y * v, z * v};
+    }
+    bool operator!= (Point3D point) const {
+        return !(point.x == x && point.y == y && point.z == z);
+    }
+    bool operator== (Point3D point) const {
+        return (point.x == x && point.y == y && point.z == z);
+    }
+    friend bool operator < (const Point3D &x, const Point3D &y) {
+        if (x.x != y.x) return x.x < y.x;
+        if (x.y != y.y) return x.y < y.y;
+        return x.z < y.z;
+    }
+    std::string ToString() const { return "(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")"; }
+};
+
+struct Point3U {
+    ull x, y, z;
+    Point3U (ull X, ull Y, ull Z) : x(X), y(Y), z(Z) {}
+    Point3U () : Point3U(0, 0, 0) {}
+    Point3U operator[] (int bias) const {
+        if (bias == 0) return {x, 0, 0};
+        if (bias == 5) return {-x, 0, 0};
+        if (bias == 1) return {0, y, 0};
+        if (bias == 4) return {0, -y, 0};
+        if (bias == 2) return {0, 0, z};
+        if (bias == 3) return {0, 0, -z};
+        return {0, 0, 0};
+    }
+    Point3U operator* (int v) const {
+        return {x * v, y * v, z * v};
+    }
+    Point3U operator+ (Point3U point) const {
+        return {x + point.x, y + point.y, z + point.z};
+    }
+    std::string ToString() const { return "(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")"; }
+};
+
+// handle upstream global path & obs
+void transformUpstream(const std::vector<Point3D>& path_in, const std::vector<Point3D>& obs_in, vec_Vec3f& path_out, vec_Vec3f& obs_out) {
+    path_out.reserve(path_in.size());
+    obs_out.reserve(obs_in.size());
+    for (int i = 0; i < path_in.size(); ++i) {
+        path_out[i].x() = path_in[i].x;
+        path_out[i].y() = path_in[i].y;
+        path_out[i].z() = path_in[i].z;
+    }
+    for (int i = 0; i < obs_in.size(); ++i) {
+        obs_out[i].x() = obs_in[i].x;
+        obs_out[i].y() = obs_in[i].y;
+        obs_out[i].z() = obs_in[i].z;
+    }
+    return;
+}
 
 
 // Calculate the shortest distance from a point to a line segment
@@ -139,7 +220,7 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
     Eigen::Vector3f crossProduct = AB.cross(AP);
     
     // Determine if the cross product is a zero vector
-    if (!crossProduct.isZero(1e-1)) { // 允许一定的误差范围
+    if (!crossProduct.isZero(0.1)) { // 允许一定的误差范围
         return false;
     }
     
@@ -154,6 +235,48 @@ bool isPointOnSegment(const Eigen::Vector3f& A, const Eigen::Vector3f& B, const 
         return false;
     }
 }
+
+
+// 计算点 p 到线段 (a, b) 的最近点
+Eigen::Matrix<double, 3, 1> projectPointOntoSegment(const Eigen::Matrix<double, 3, 1>& a, const Eigen::Matrix<double, 3, 1>& b, const Eigen::Matrix<double, 3, 1>& p) {
+    Eigen::Matrix<double, 3, 1> ab = b - a;
+    Eigen::Matrix<double, 3, 1> ap = p - a;
+    double t = ap.dot(ab) / ab.dot(ab);
+    if (t < 0.0) {
+        return a;
+    } else if (t > 1.0) {
+        return b;
+    } else {
+        return a + t * ab;
+    }
+}
+
+// 计算点 p 到路径 path 上最近点的投影
+Eigen::Matrix<double, 3, 1> findClosestProjectionPoint(const vec_Vec3f& path, const Eigen::Matrix<double, 3, 1>& p, int& index) {
+    if (path.size() < 2) {
+        throw std::invalid_argument("Path must contain at least two points");
+    }
+
+    Eigen::Matrix<double, 3, 1> closest_point = path[0];
+    double min_distance = std::numeric_limits<double>::max();
+
+    for (size_t i = 0; i < path.size() - 1; ++i) {
+        Eigen::Matrix<double, 3, 1> projected_point = projectPointOntoSegment(path[i], path[i+1], p);
+        double distance = (p - projected_point).norm();
+        if (distance < min_distance) {
+            min_distance = distance;
+            index = i+1;
+            closest_point = projected_point;
+        }
+    }
+
+    return closest_point;
+}
+
+
+
+
+
 
 
 void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<float> Pz, vector<float> v_norm,
@@ -321,7 +444,7 @@ void solveunit3D(vector<float> dt, vector<float> Px, vector<float> Py, vector<fl
     return;
 }
 
-int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE, vector<float> dt, vector<Eigen::Vector3f> ref_points, vector<float> v_norm, vector<Eigen::Matrix<float, 3, 3>> Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
+int solveMpc(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1>& new_centerX, std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1>& new_centerU, std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1>& elliE, vector<float> dt, vector<Eigen::Vector3f>& ref_points, vector<float>& v_norm, vector<Eigen::Matrix<float, 3, 3>>& Rk, BlockVector<float, HorizonNum + 1, SizeX + SizeU>& res) {
     float q=0.35, st=0, wei=10, weig=50; int K=250;
     // std::cout << "please enter the inner iteration num" << std::endl;
     // cin >> K;
@@ -378,7 +501,7 @@ int solveMpc(vec_E<Polyhedron<3>> mpc_polyhedrons, std::array<Eigen::Matrix<floa
         lamb2.push_back(0.0001);//纵向加速度
         lamb3.push_back(0.001);//信赖域约束
         lamb4.push_back(1000);//曲率过大
-        lamb5.push_back(0.1);//凸走廊约束
+        lamb5.push_back(0.1);//凸走廊约束 0.1
         lamb6.push_back(0.001);//曲率平方
     }
     // for (int i = 0; i < 100; i++) {
@@ -498,12 +621,12 @@ void solveunit3DTraj(vector<float> dt, vector<float> Px, vector<float> Py, vecto
               0, 0, 0, lamb2[i], 0, 0, 0, 0, 0, 0, 0, 0,
               0, 0, 0, 0, lamb2[i], 0, 0, 0, 0, 0, 0, 0,
               0, 0, 0, 0, 0, lamb2[i], 0, 0, 0, 0, 0, 0,
-              0, 0, 0, 0, 0, 0, 0.0000001, 0, 0, 0, 0, 0,
-              0, 0, 0, 0, 0, 0, 0, 0.0000001, 0, 0, 0, 0,
-              0, 0, 0, 0, 0, 0, 0, 0, 0.0000001, 0, 0, 0,
-              0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0000001, 0, 0,
-              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0000001, 0,
-              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0000001;
+              0, 0, 0, 0, 0, 0, 0.000000000001, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0.000000000001, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0.000000000001, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0.000000000001, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.000000000001, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.000000000001;
         Li << -Px[i] * lamb1[i],
               -Py[i] * lamb1[i],
               -Pz[i] * lamb1[i],
@@ -569,6 +692,34 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
                  vector<float>& dt, vector<Eigen::Vector3f>& ref_points, std::vector<Eigen::Vector3f>& traj_ref_speed, vector<float>& v_norm, vector<Eigen::Matrix<float, 3, 3>>& Rk,
                  BlockVector<float, HorizonNum + 1, TrjSizeX + TrjSizeU>& res) {
 
+    std::cout << "ref_points" << std::endl;
+    for (const auto& pt : ref_points) {
+        std::cout << pt.x() << " " << pt.y() << " " << pt.z() << std::endl;
+    }
+
+    std::cout << "elliE" << std::endl;
+    for (int i = 0; i < elliE.size(); i++) {
+        for (int j = 0; j < 3; j++) {
+            std::cout << elliE[i](j, 0) << " " << elliE[i](j, 1) << " " << elliE[i](j, 2) << std::endl;
+        }
+    }
+
+    std::cout << "new_centerU" << std::endl;
+    for (int i = 0; i < new_centerU.size(); i++) {
+        for (int j = 0; j < TrjSizeYu - TrjSizeEqu; j++) {
+            std::cout << new_centerU[i](j, 0) << std::endl;
+        }
+    }
+
+    std::cout << "new_centerX" << std::endl;
+    for (int i = 0; i < new_centerX.size(); i++) {
+        for (int j = 0; j < TrjSizeYx - TrjSizeEqx; j++) {
+            std::cout << new_centerX[i](j, 0) << std::endl;
+        }
+    }
+
+
+
     float q=0.35, st=0, wei=10, weig=50; int K=250;
     // std::cout << "please enter the inner iteration num" << std::endl;
     // cin >> K;
@@ -601,25 +752,25 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
         Vy[i] = traj_ref_speed[i].y();
         Vz[i] = traj_ref_speed[i].z();
         if (i == 0) {
-            lamb1.push_back(1);
+            lamb1.push_back(1); // 1
         } else if (i == HorizonNum) {
-            lamb1.push_back(0.04);
+            lamb1.push_back(0.04); // 0.04
         } else if (i > HorizonNum-6) {
-            lamb1.push_back(0.04);
+            lamb1.push_back(0.04); //0.04
         } else {
-            lamb1.push_back(0.04);
+            lamb1.push_back(0.04);// 0.04
         }
         
         if (i > HorizonNum-6) {
-            lamb2.push_back(0.01); 
+            lamb2.push_back(0.01);  // 0.01
         } else {
-            lamb2.push_back(0.01f);
+            lamb2.push_back(0.01f); // 0.01
         }
         
 
         lamb3.push_back(0.0001);// 最小化控制输入 0.0001
         lamb4.push_back(0.0001);//曲率过大 0.0001
-        lamb5.push_back(0.000001);//凸走廊约束 0.1
+        lamb5.push_back(0.000001);//凸走廊约束 0.1  0.000001
     }
     // for (int i = 0; i < 100; i++) {
         solveunit3DTraj(dt, Px, Py, Pz, Vx, Vy, Vz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
@@ -637,6 +788,32 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
 // Calculate the Euclidean distance between two 3D points
 float distance(const Eigen::Vector3f& p1, const Eigen::Vector3f& p2) {
     return sqrt(pow(p1(0) - p2(0), 2) + pow(p1(1) - p2(1), 2) + pow(p1(2) - p2(2), 2));
+}
+
+// Interpolate path points with a step size of max_length for global path
+vec_Vec3f interpolateGlobalPoints(const vec_Vec3f& points, double max_length) {
+    vec_Vec3f interpolated_points;
+    interpolated_points.push_back(points[0]);
+
+    for (size_t i = 1; i < points.size(); ++i) {
+        Eigen::Vector3d p1 = points[i - 1];
+        Eigen::Vector3d p2 = points[i];
+        float segment_length = distance(p1.cast<float>(), p2.cast<float>());
+        size_t num_segments = static_cast<size_t>(ceil(segment_length / max_length));
+        Eigen::Vector3d direction(p2(0) - p1(0), p2(1) - p1(1), p2(2) - p1(2));
+        direction.normalize();
+
+        for (size_t j = 1; j < num_segments; ++j) {
+            Eigen::Vector3d new_point = {
+                p1.x() + direction.x() * max_length * j,
+                p1.y() + direction.y() * max_length * j,
+                p1.z() + direction.z() * max_length * j
+            };
+            interpolated_points.push_back(new_point);
+        }
+        interpolated_points.push_back(p2);  // Ensure the last point of the segment is added
+    }
+    return interpolated_points;
 }
 
 // Interpolate path points with a step size of max_length
@@ -887,10 +1064,7 @@ vector<float> computeResCurvature(const vector<Eigen::Vector3f>& points, const v
         Eigen::Vector3f v1(points[i](0) - points[i - 1](0), points[i](1) - points[i - 1](1), points[i](2) - points[i - 1](2));
         Eigen::Vector3f v2(points[i + 1](0) - points[i](0), points[i + 1](1) - points[i](1), points[i + 1](2) - points[i](2));
         float angle = acos(std::min(std::max(v1.dot(v2) / (v1.norm() * v2.norm()), -0.999f), 0.999f));
-        // std::cout << v1.dot(v2) << std::endl;
-        // std::cout << v1.dot(v2) / (v1.norm() * v2.norm()) << std::endl;
         curvature[i] = angle / dis;
-        // curvature[i] = angle ;
     }
     return curvature;
 }

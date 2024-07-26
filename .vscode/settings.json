@@ -89,6 +89,10 @@
         "valarray": "cpp",
         "*.ipp": "cpp",
         "geometry": "cpp",
-        "core": "cpp"
+        "core": "cpp",
+        "queue": "cpp",
+        "dense": "cpp",
+        "splines": "cpp",
+        "variant": "cpp"
     }
 }

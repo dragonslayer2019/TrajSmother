@@ -60,11 +60,11 @@ std::vector<State> generateSpeedProfile(std::vector<float>& x_data, std::vector<
         }
     }
 
-    for (int i = start_id+5; i < x_data.size() - 1; i+=3) {
+    for (int i = start_id+7; i < x_data.size() - 1; i+=3) {
         new_x.push_back(x_data[i]);
     }
 
-    for (int i = start_id+5; i < y_data.size() - 1; i+=3) {
+    for (int i = start_id+7; i < y_data.size() - 1; i+=3) {
         new_y.push_back(y_data[i]);
     }
     // 拟合样条曲线

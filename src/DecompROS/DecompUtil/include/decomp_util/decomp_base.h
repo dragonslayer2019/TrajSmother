@@ -110,7 +110,7 @@ class DecompBase {
       }
 
       if (obs_remain.empty()) {
-        k = 1.5;
+        k = 1.2;
         std::cout << "only need: " <<  i << " hyperplanes, k: " << k << std::endl;
       } else {
         const auto closest_pt = ellipsoid_.closest_point(obs_remain);

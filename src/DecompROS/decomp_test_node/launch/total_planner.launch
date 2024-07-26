@@ -1,0 +1,39 @@
+<launch>
+  <!-- 第一组：新增的全局路径搜索节点 -->
+  <group>
+    <node pkg="global_path_search"
+          type="global_path_search_node"
+          name="global_path_search_node"
+          output="screen">
+    </node>
+  </group>
+
+
+  <!-- 第二组：你的原始节点和相关参数 -->
+  <group>
+    <node pkg="decomp_test_node"
+          type="total_planner"
+          name="test_decomp"
+          output="screen">
+      <param name="bag_file" value="$(find decomp_test_node)/data/simple.bag"/>
+      <param name="bag_topic" value="/cloud"/>
+      <param name="path_file" value="$(find decomp_test_node)/data/path3d_global.txt"/>
+      <param name="robot_description" command="cat $(find decomp_test_node)/src/urdf/drone.urdf" />
+    </node>
+
+    <!-- 加载无人机URDF模型 -->
+    <param name="robot_description" command="cat $(find decomp_test_node)/src/urdf/drone.urdf" />
+
+    <arg name="model"/>
+    <param name="robot_description" textfile="$(find decomp_test_node)/src/urdf/drone.urdf"/>
+    <param name="use_gui" value="true"/>
+
+    <node name="joint_state_publisher"
+          pkg="joint_state_publisher"
+          type="joint_state_publisher"/>
+
+    <node name="robot_state_publisher"
+          pkg="robot_state_publisher"
+          type="state_publisher"/>
+  </group>
+</launch>

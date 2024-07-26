@@ -18,7 +18,7 @@
         output="screen">
     <param name="bag_file" value="$(find decomp_test_node)/data/simple.bag"/>
     <param name="bag_topic" value="/cloud"/>
-    <param name="path_file" value="$(find decomp_test_node)/data/path3d_swift.txt"/>
+    <param name="path_file" value="$(find decomp_test_node)/data/path3d_global.txt"/>
     <param name="robot_description" command="cat $(find decomp_test_node)/src/urdf/drone.urdf" />
   </node>
 
@@ -36,5 +36,4 @@
   <node name = "robot_state_publisher"
         pkg = "robot_state_publisher"
         type = "state_publisher"/>
-
 </launch>
