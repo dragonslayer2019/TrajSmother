@@ -126,13 +126,14 @@ int main(int argc, char ** argv){
   
   ros::Rate r(10);
   bool flag = 1;
-  
+  int debug_cnt = 0;
   while (ros::ok()) {
     ros::spinOnce();
     ROS_INFO("inner ros while!!!, path size: %d", int(glob_path.size()));
     if (!glob_path.empty()) {
       // check path length
       ROS_INFO("start local planner!!!!");
+      debug_cnt++;
       // ROS_INFO("origin global path");
       // for (const auto& point : glob_path) {
       //   std::cout << point.x() << " " << point.y() << " " << point.z() << std::endl;
