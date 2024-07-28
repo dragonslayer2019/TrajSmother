@@ -292,6 +292,9 @@ int main(int argc, char ** argv){
 
       std::array<Eigen::Matrix<float, SizeYx - SizeEqx, 1>, HorizonNum + 1> new_centerX;
       std::array<Eigen::Matrix<float, SizeYu - SizeEqu, 1>, HorizonNum + 1> new_centerU;
+      for (auto& mat : new_centerX) {
+        mat.setZero();
+      }
       for (auto& mat : new_centerU) {
         mat.setZero();
       }
@@ -332,6 +335,9 @@ int main(int argc, char ** argv){
       res.setZero();
       solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res);
       std::cout << "end solveMpc" << std::endl;
+      if (final_cost > 10000.0f) {
+        std::cout << "shit in path smoother!!!" << std::endl;
+      }
       
       vector<Eigen::Vector3f> res_points;
       Eigen::Vector3f tempx(0, 0, 0);
@@ -523,6 +529,9 @@ int main(int argc, char ** argv){
       res_traj.setZero();
       solveMpcTraj(traj_mpc_polyhedrons, traj_new_centerX, traj_new_centerU, traj_elliE, traj_dt, traj_ref_points, traj_ref_speed, traj_v_norm, traj_Rk, res_traj);
       std::cout << "end solve Traj Mpc" << std::endl;
+      if (final_cost > 10000.0f) {
+        std::cout << "shit in traj smoother!!!!" << std::endl;
+      }
 
       // save traj
       std::ofstream outfile4("/home/alan/桌面/plot/traj_time.txt");
