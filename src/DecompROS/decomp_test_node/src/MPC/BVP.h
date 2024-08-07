@@ -78,7 +78,7 @@ std::vector<State> generateSpeedProfile(std::vector<float>& x_data, std::vector<
     std::ofstream outfile0("/home/alan/桌面/plot/speed.txt");
     // std::cout << "temp_x: " << std::endl; 
     std::vector<float> pos;
-    for (float x = new_x.front(); x <= new_x.back(); x += dx) {
+    for (float x = new_x.front(); x <= new_x.back() + 20.f; x += dx) {
         // std::cout << x << std::endl;
         outfile << x << "\n";
         outfile0 << s(x) << "\n";

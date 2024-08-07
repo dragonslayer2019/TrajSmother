@@ -184,21 +184,21 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: /test_decomp/visualization_marker2
       Name: smooth_traj
       Namespaces:
-        {}
+        points_and_lines: true
       Queue Size: 50
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /test_decomp/visualization_marker3
       Name: ref_traj
       Namespaces:
-        points_and_lines: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Class: rviz/PointStamped
       Color: 10; 200; 200
@@ -269,25 +269,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 227.68218994140625
+      Distance: 226.715087890625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 173.2108612060547
-        Y: 212.27210998535156
-        Z: -3.051074600080028e-6
+        X: 58.406681060791016
+        Y: 93.76869201660156
+        Z: -1.0294541425537318e-5
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.085398830473423
+      Pitch: 0.03039858117699623
       Target Frame: base_link
       Value: XYOrbit (rviz)
-      Yaw: 4.093606948852539
+      Yaw: 0.6904716491699219
     Saved: ~
 Window Geometry:
   Displays:

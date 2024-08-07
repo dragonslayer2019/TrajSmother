@@ -752,7 +752,7 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
         Vy[i] = traj_ref_speed[i].y();
         Vz[i] = traj_ref_speed[i].z();
         if (i == 0) {
-            lamb1.push_back(1); // 1
+            lamb1.push_back(0.0001); // 1
         } else if (i == HorizonNum) {
             lamb1.push_back(0.04); // 0.04
         } else if (i > HorizonNum-6) {
@@ -762,9 +762,9 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
         }
         
         if (i > HorizonNum-6) {
-            lamb2.push_back(0.01);  // 0.01
+            lamb2.push_back(0.0000000000001);  // 0.01
         } else {
-            lamb2.push_back(0.01f); // 0.01
+            lamb2.push_back(0.0000000000001f); // 0.01
         }
         
 
@@ -775,6 +775,14 @@ int solveMpcTraj(vec_E<Polyhedron<3>>& mpc_polyhedrons, std::array<Eigen::Matrix
     // for (int i = 0; i < 100; i++) {
         solveunit3DTraj(dt, Px, Py, Pz, Vx, Vy, Vz, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, CorridorP, new_centerX,  new_centerU, elliE, res, K);
     // }
+
+    if (final_cost > 10000.f) {
+        for (int i = 0; i <= HorizonNum; i++) {
+            res.v[i](0, 0) = ref_points[i].x();
+            res.v[i](1, 0) = ref_points[i].y();
+            res.v[i](2, 0) = ref_points[i].z();
+        }
+    }
 
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;

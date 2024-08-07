@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include "json.hpp"
 #include "cmath"
+float final_cost = 0.0f;
 
 float final_out_cost = .0f;
 template <typename T, int HorizonNum, int SizeX, int SizeU, int SizeYx, int SizeYu, int SizeEqx, int SizeEqu, int NumEllx, int NumEllu, int SizeG, int SizeEllx[], int SizeEllu[]>
@@ -458,6 +459,7 @@ public:
 
         cout << "Final Cost: " << min_cost << endl;
         final_out_cost = min_cost;
+        final_cost = min_cost;
         return barE * res;
     }
     
