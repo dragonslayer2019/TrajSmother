@@ -23,6 +23,30 @@ float distance_2d(const Eigen::Vector2f& p1, const Eigen::Vector2f& p2) {
     return sqrt(pow(p1(0) - p2(0), 2) + pow(p1(1) - p2(1), 2));
 }
 
+bool isPointOnSegment_2d(const Eigen::Vector2f& A, const Eigen::Vector2f& B, const Eigen::Vector2f& P) {
+    Eigen::Vector2f AB = B - A;
+    Eigen::Vector2f AP = P - A;
+    
+    // Calculate the cross product
+    Eigen::Vector2f crossProduct = AB.cross(AP);
+    
+    // Determine if the cross product is a zero vector
+    if (!crossProduct.isZero(0.1)) { // 允许一定的误差范围
+        return false;
+    }
+    
+    // Calculating the dot product
+    float dotProduct = AP.dot(AB);
+    float squaredLengthAB = AB.dot(AB);
+    
+    // Determine whether the dot product is within the specified range
+    if (0 <= dotProduct && dotProduct <= squaredLengthAB) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 // Interpolate path points with a step size of max_length
 vector<Eigen::Vector2f> interpolatePoints_2d(const vector<Eigen::Vector2f>& points, float max_length) {
     vector<Eigen::Vector2f> interpolated_points;
