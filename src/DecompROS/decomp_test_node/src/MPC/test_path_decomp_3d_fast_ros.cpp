@@ -1,5 +1,3 @@
-// #include "/home/alan/TrajSmother/src/DecompROS/decomp_test_node/src/bag_reader.hpp"
-// #include "/home/alan/TrajSmother/src/DecompROS/decomp_test_node/src/txt_reader.hpp"
 #include "../bag_reader.hpp"
 #include "../txt_reader.hpp"
 #include <decomp_ros_utils/data_ros_utils.h>

@@ -19,6 +19,8 @@ cs_add_executable(test_path_decomp_3d_fast src/test_path_decomp_3d_fast.cpp)
 
 cs_add_executable(test_path_decomp_3d_ros src/MPC/test_path_decomp_3d_fast_ros.cpp)
 
+cs_add_executable(test_path_decomp_2d_ros src/MPC/test_path_decomp_2d_ros.cpp)
+
 cs_add_executable(total_planner src/MPC/total_planner.cpp)
 
 cs_add_executable(test_seed_decomp src/test_seed_decomp.cpp)

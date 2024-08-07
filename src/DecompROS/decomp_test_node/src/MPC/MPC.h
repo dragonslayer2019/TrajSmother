@@ -6,6 +6,7 @@
 #include "json.hpp"
 #include "cmath"
 
+float final_out_cost = .0f;
 template <typename T, int HorizonNum, int SizeX, int SizeU, int SizeYx, int SizeYu, int SizeEqx, int SizeEqu, int NumEllx, int NumEllu, int SizeG, int SizeEllx[], int SizeEllu[]>
 class MPC_ADMMSolver{
 private:
@@ -369,6 +370,7 @@ public:
         }
 
         cout << "Final Cost: " << min_cost << endl;
+        final_out_cost = min_cost;
         return barE * res;
     }
 
@@ -455,6 +457,7 @@ public:
         // }
 
         cout << "Final Cost: " << min_cost << endl;
+        final_out_cost = min_cost;
         return barE * res;
     }
     

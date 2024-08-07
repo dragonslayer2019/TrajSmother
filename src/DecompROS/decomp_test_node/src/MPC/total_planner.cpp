@@ -254,9 +254,9 @@ int main(int argc, char ** argv){
       cur_path_f.insert(cur_path_f.begin(), cur_pose.cast<float>());
       // 获取路径优化参考点
       vector<Eigen::Vector3f> ref_points = get_sample_point(cur_path_f);
-      for (const auto& pt : ref_points) {
-        std::cout << pt.x() << " " << pt.y() << " " << pt.z() << std::endl;
-      }
+      // for (const auto& pt : ref_points) {
+      //   std::cout << pt.x() << " " << pt.y() << " " << pt.z() << std::endl;
+      // }
 
       // 参考路径可视化
       vec_Vec3f ref_path(HorizonNum+1);
@@ -331,6 +331,9 @@ int main(int argc, char ** argv){
       res.setZero();
       solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res);
       std::cout << "end solveMpc" << std::endl;
+      if (final_out_cost > 10000.f) {
+        std::cout << "ERROR in path smooth step!!!!!" << std::endl;
+      }
       
       vector<Eigen::Vector3f> res_points;
       Eigen::Vector3f tempx(0, 0, 0);
@@ -340,7 +343,7 @@ int main(int argc, char ** argv){
         res_points[i].x() = res.v[i](0, 0);
         res_points[i].y() = res.v[i](1, 0);
         res_points[i].z() = res.v[i](2, 0);
-        std::cout << res_points[i].x() << " " << res_points[i].y() << " " << res_points[i].z() << std::endl;
+        // std::cout << res_points[i].x() << " " << res_points[i].y() << " " << res_points[i].z() << std::endl;
         if (tempx == res_points[i]) {
           cnt++;
         }
@@ -383,9 +386,9 @@ int main(int argc, char ** argv){
 
       // The reference speed is corrected again based on the maximum acceleration and deceleration
       std::vector<float> final_refv = smoothSpeeds(fit_refv, delta_x);
-      for (const auto& v : final_refv) {
-        std::cout << v << std::endl;
-      }
+      // for (const auto& v : final_refv) {
+      //   std::cout << v << std::endl;
+      // }
 
 
       /**************Trajectory Optimization****************/
@@ -420,9 +423,9 @@ int main(int argc, char ** argv){
       std::chrono::duration<double> duration2 = end_time2 - start_time2;
       std::cout << "Time taken by speed generator: " << duration2.count() << " seconds" << std::endl;
 
-      for (const auto& state : smooth_ref_traj) {
-        std::cout << state.t << " " << state.position << " " << state.velocity << " " << state.acceleration << " " << state.jerk << std::endl;
-      }
+      // for (const auto& state : smooth_ref_traj) {
+      //   std::cout << state.t << " " << state.position << " " << state.velocity << " " << state.acceleration << " " << state.jerk << std::endl;
+      // }
 
       // Get a smooth path starting from the initial position of the drone
       std::vector<Eigen::Vector3f> sub_res_points(res_points.begin() + closest_idx, res_points.begin() + closest_idx + HorizonNum+1);
@@ -433,7 +436,7 @@ int main(int argc, char ** argv){
       vector<float> traj_v_norm;
       for (int i = 0; i <= HorizonNum; i++) {
         traj_v_norm.push_back(smooth_ref_traj[i].velocity);
-        std::cout << smooth_ref_traj[i].velocity << std::endl;
+        // std::cout << smooth_ref_traj[i].velocity << std::endl;
       }
       
       traj_ref_speed.clear();
@@ -443,10 +446,10 @@ int main(int argc, char ** argv){
       }
       // traj_ref_speed.push_back((sub_res_points[HorizonNum] - sub_res_points[HorizonNum-1]).normalized()*traj_v_norm[HorizonNum]);
 
-      std::cout << "traj_ref_speed" << std::endl;
-      for(const auto& sp : traj_ref_speed) {
-        std::cout << sp.x() << " " << sp.y() << " " << sp.z() << " " << std::endl;
-      }
+      // std::cout << "traj_ref_speed" << std::endl;
+      // for(const auto& sp : traj_ref_speed) {
+      //   std::cout << sp.x() << " " << sp.y() << " " << sp.z() << " " << std::endl;
+      // }
 
       std::ofstream out1("/home/alan/桌面/plot/traj_refv_x.txt");
       std::ofstream out2("/home/alan/桌面/plot/traj_refv_y.txt");
@@ -483,7 +486,7 @@ int main(int argc, char ** argv){
         std::cout << "point " << i << " is on " << idx << " lane" << std::endl;
         traj_elliE[i] = E_inverse[idx];
         traj_new_centerX[i].block(0, 0, 3, 1) = E_inverse_d[idx];
-        std::cout << E_inverse_d[idx](0, 0) << " " << E_inverse_d[idx](1, 0) << " " << E_inverse_d[idx](2, 0) << std::endl;
+        // std::cout << E_inverse_d[idx](0, 0) << " " << E_inverse_d[idx](1, 0) << " " << E_inverse_d[idx](2, 0) << std::endl;
       }
 
       // compute traj_Rk
@@ -510,11 +513,11 @@ int main(int argc, char ** argv){
             traj_Rk[i] = calculateTransformationMatrix(p0, p1, p2);
         }
       }
-      for (int i = 0; i < traj_Rk.size(); i++) {
-        for (int j = 0; j < 3; j++) {
-          std::cout << traj_Rk[i](j, 0) << " " << traj_Rk[i](j, 1) << " " << traj_Rk[i](j, 2) << std::endl;
-        }
-      }
+      // for (int i = 0; i < traj_Rk.size(); i++) {
+      //   for (int j = 0; j < 3; j++) {
+      //     std::cout << traj_Rk[i](j, 0) << " " << traj_Rk[i](j, 1) << " " << traj_Rk[i](j, 2) << std::endl;
+      //   }
+      // }
 
       // fomulate traj planning
       std::cout << "start solve Traj MPC" << std::endl;
@@ -522,6 +525,10 @@ int main(int argc, char ** argv){
       res_traj.setZero();
       solveMpcTraj(traj_mpc_polyhedrons, traj_new_centerX, traj_new_centerU, traj_elliE, traj_dt, traj_ref_points, traj_ref_speed, traj_v_norm, traj_Rk, res_traj);
       std::cout << "end solve Traj Mpc" << std::endl;
+      if (final_out_cost > 10000.f) {
+        std::cout << "ERROR in traj smooth step!!!!!" << std::endl;
+      }
+
 
       // save traj
       std::ofstream outfile4("/home/alan/桌面/plot/traj_time.txt");
