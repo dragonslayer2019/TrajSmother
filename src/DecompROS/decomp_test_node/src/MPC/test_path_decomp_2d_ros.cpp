@@ -75,7 +75,7 @@ int main(int argc, char ** argv){
   EllipsoidDecomp2D decomp_util;
   decomp_util.set_obs(obs2d);
   decomp_util.set_local_bbox(Vec2f(1, 2));
-  decomp_util.dilate(path); //Set max iteration number of 10, do fix the path
+  decomp_util.dilate_fast(path); // Todo: make sure 5 cutting planes + 4 bounding planes
 
   std::vector<Eigen::Vector2f> path_f;
   path_f.reserve(path.size());
@@ -123,7 +123,7 @@ int main(int argc, char ** argv){
     matU.setZero();
   }
 
-  std::array<Eigen::Matrix<float, 3, 3>, HorizonNum + 1> elliE;
+  std::array<Eigen::Matrix<float, 2, 2>, HorizonNum + 1> elliE;
 
   for (int i = 0; i <= HorizonNum; ++i) {
     for (int j = 0; j < path_f.size()-1;j++){
@@ -143,16 +143,16 @@ int main(int argc, char ** argv){
   std::cout << "start solve MPC" << std::endl;
   BlockVector<float, HorizonNum + 1, SizeX + SizeU> res;
   res.setZero();
-  solveMpc(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res);
+  solveMpc2D(mpc_polyhedrons, new_centerX, new_centerU, elliE, dt, ref_points, v_norm, Rk, res);
   std::cout << "end solveMpc" << std::endl;
 
-  vector<Eigen::Vector2f> res_points;
-  res_points.resize(HorizonNum + 1);
-  for (int i = 0; i < res_points.size(); i++) {
-    res_points[i].x() = res.v[i](0, 0);
-    res_points[i].y() = res.v[i](1, 0);
-    std::cout << res_points[i].x() << " " << res_points[i].y() << std::endl;
-  }
+  // vector<Eigen::Vector2f> res_points;
+  // res_points.resize(HorizonNum + 1);
+  // for (int i = 0; i < res_points.size(); i++) {
+  //   res_points[i].x() = res.v[i](0, 0);
+  //   res_points[i].y() = res.v[i](1, 0);
+  //   std::cout << res_points[i].x() << " " << res_points[i].y() << std::endl;
+  // }
 
   //Publish visualization msgs
   decomp_ros_msgs::EllipsoidArray es_msg = DecompROS::ellipsoid_array_to_ros(decomp_util.get_ellipsoids());

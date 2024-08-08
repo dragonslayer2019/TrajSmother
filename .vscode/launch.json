@@ -4,7 +4,7 @@
         {
             "name": "ROS: Launch",
             "request": "launch",
-            "target": "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/launch/total_planner.launch",
+            "target": "/home/alan/path2d/src/DecompROS/decomp_test_node/launch/test_path_decomp_2d_ros.launch",
             // "target": "/home/alan/catkin_ws/src/DecompROS/decomp_test_node/launch/test_path_decomp_3d_ros.launch",
             "type": "ros",
             // "env": {

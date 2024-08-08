@@ -116,14 +116,25 @@ class DecompBase {
         const auto closest_pt = ellipsoid_.closest_point(obs_remain);
         // std::cout << "closest_pt: " << closest_pt.transpose() << std::endl;
         Vecf<Dim> p = ellipsoid_.R_.transpose() * (closest_pt - ellipsoid_.d()); // to ellipsoid frame
-        k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2) + pow(p(2)/ellipsoid_.axel_(2), 2));
+        if (Dim == 3) {
+          k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2) + pow(p(2)/ellipsoid_.axel_(2), 2));
+        } else if (Dim == 2) {
+          k = sqrtf(pow(p(0)/ellipsoid_.axel_(0), 2) + pow(p(1)/ellipsoid_.axel_(1), 2));
+        }
         std::cout << "find polyhedron times: " << i << " dilate k: " << k << std::endl;
       }
+      Matf<Dim, Dim> limit_ellipsoid_E;
+      if (Dim == 3) {
+        Matf<Dim, Dim> limit_ellipsoid_E = ellipsoid_.C_;
+        limit_ellipsoid_E(0, 0) *= k;
+        limit_ellipsoid_E(1, 1) *= k;
+        limit_ellipsoid_E(2, 2) *= k;
+      } else if (Dim == 2) {
+        Matf<Dim, Dim> limit_ellipsoid_E = ellipsoid_.C_;
+        limit_ellipsoid_E(0, 0) *= k;
+        limit_ellipsoid_E(1, 1) *= k;       
+      }
 
-      Matf<Dim, Dim> limit_ellipsoid_E = ellipsoid_.C_;
-      limit_ellipsoid_E(0, 0) *= k;
-      limit_ellipsoid_E(1, 1) *= k;
-      limit_ellipsoid_E(2, 2) *= k;
       // std::cout << "limit_ellipsoid_E: " << limit_ellipsoid_E << std::endl;
 
       limit_ellipsoid_ = ellipsoid_;
