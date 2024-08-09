@@ -4,6 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Path1
         - /smooth_traj1/Namespaces1
         - /global_path1/Namespaces1
       Splitter Ratio: 0.5120000243186951
@@ -26,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -100,7 +101,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -115,7 +116,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 0.25
       BoundColor: 255; 0; 0
       Class: decomp_rviz_plugins/PolyhedronArray
@@ -148,7 +149,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 10; 100; 25
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -166,31 +167,33 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /test_decomp/ref_path_path
       Unreliable: false
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: /test_decomp/visualization_marker1
       Name: ref_path
       Namespaces:
-        {}
+        points_and_lines: true
+        text_marker1: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: /test_decomp/visualization_marker
       Name: smooth_path
       Namespaces:
-        {}
+        points_and_lines: true
+        text_markers: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /test_decomp/visualization_marker2
       Name: smooth_traj
       Namespaces:
-        points_and_lines: true
+        {}
       Queue Size: 50
-      Value: true
+      Value: false
     - Class: rviz/Marker
       Enabled: false
       Marker Topic: /test_decomp/visualization_marker3
@@ -230,7 +233,7 @@ Visualization Manager:
       Marker Topic: /vis_marker
       Name: global_path
       Namespaces:
-        global_path: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -238,7 +241,7 @@ Visualization Manager:
       Marker Topic: visualization_marker
       Name: mountain
       Namespaces:
-        mountain: true
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -269,25 +272,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 226.715087890625
+      Distance: 14.670005798339844
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 58.406681060791016
-        Y: 93.76869201660156
+        X: 13.20238208770752
+        Y: 10.984471321105957
         Z: -1.0294541425537318e-5
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.03039858117699623
+      Pitch: 0.9597970247268677
       Target Frame: base_link
       Value: XYOrbit (rviz)
-      Yaw: 0.6904716491699219
+      Yaw: 0.005465389229357243
     Saved: ~
 Window Geometry:
   Displays:

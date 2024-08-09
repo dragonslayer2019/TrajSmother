@@ -125,12 +125,12 @@ class DecompBase {
       }
       Matf<Dim, Dim> limit_ellipsoid_E;
       if (Dim == 3) {
-        Matf<Dim, Dim> limit_ellipsoid_E = ellipsoid_.C_;
+        limit_ellipsoid_E = ellipsoid_.C_;
         limit_ellipsoid_E(0, 0) *= k;
         limit_ellipsoid_E(1, 1) *= k;
         limit_ellipsoid_E(2, 2) *= k;
       } else if (Dim == 2) {
-        Matf<Dim, Dim> limit_ellipsoid_E = ellipsoid_.C_;
+        limit_ellipsoid_E = ellipsoid_.C_;
         limit_ellipsoid_E(0, 0) *= k;
         limit_ellipsoid_E(1, 1) *= k;       
       }
