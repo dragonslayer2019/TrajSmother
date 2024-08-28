@@ -466,13 +466,13 @@ int solveMpc2D(vec_E<Polyhedron<2>>& mpc_polyhedrons, std::array<Eigen::Matrix<f
         // lamb5.push_back(0.1);//凸走廊约束 0.1
         // lamb6.push_back(0.001);//曲率平方
     }
-    // for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 100; i++) {
         solveunit2D(dt, Px, Py, v_norm, Rk, lamb1, lamb2, lamb3, lamb4, lamb5, lamb6, CorridorP, new_centerX,  new_centerU, elliE, res, K);
-    // }
+    }
 
     gettimeofday(&T2,NULL);
     timeuse = (T2.tv_sec - T1.tv_sec) + (float)(T2.tv_usec - T1.tv_usec)/1000000.0;
     std::cout<<"time taken by mpc problem: "<<timeuse<< " seconds" << std::endl;  //输出时间（单位：ｓ）
-    // std::cout<<"average time taken by mpc problem: "<<timeuse / 100.0f<< " seconds" << std::endl;  //输出时间（单位：ｓ）
+    std::cout<<"average time taken by mpc problem: "<<timeuse / 100.0f<< " seconds" << std::endl;  //输出时间（单位：ｓ）
     return 0;
 }
